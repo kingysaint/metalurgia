@@ -321,6 +321,13 @@
       <div class="progress-chip" id="novedades-chip">0 pendientes</div>
     </div>
 
+    <div class="kpi-row">
+      <div class="kpi-tile"><div class="label">Pendientes</div><div class="value bad" id="kpi-nov-pendientes">0</div></div>
+      <div class="kpi-tile"><div class="label">Finalizadas</div><div class="value good" id="kpi-nov-finalizadas">0</div></div>
+      <div class="kpi-tile"><div class="label">Atrasadas</div><div class="value bad" id="kpi-nov-atrasadas">0</div></div>
+      <div class="kpi-tile"><div class="label">Avance promedio</div><div class="value" id="kpi-nov-avance">—</div></div>
+    </div>
+
     <div class="panel">
       <h2>Reportar novedad</h2>
       <div class="add-form" style="margin-top:0;">
@@ -332,7 +339,7 @@
           </div>
         </div>
         <div class="field"><label for="nov-area">Área</label><select id="nov-area"></select></div>
-        <div class="field"><label for="nov-equipo">Equipo</label><input type="text" id="nov-equipo" placeholder="Ej: Molino de Bolas 1"></div>
+        <div class="field"><label for="nov-equipo">Equipo</label><select id="nov-equipo"></select></div>
         <div class="field"><label>Disciplina</label>
           <div class="seg" role="group" aria-label="Disciplina">
             <button type="button" data-nov-disciplina="mecanico" aria-pressed="true">Mecánico</button>
@@ -341,6 +348,7 @@
           </div>
         </div>
         <div class="field"><label for="nov-tipo-falla">Tipo de falla</label><select id="nov-tipo-falla"></select></div>
+        <div class="field"><label for="nov-compromiso">Entrega comprometida</label><input type="date" id="nov-compromiso"></div>
         <div class="field" style="min-width:240px; flex:2;"><label for="nov-comentario">Comentario</label><textarea id="nov-comentario" placeholder="Describe la novedad…"></textarea></div>
         <button class="btn primary" id="btn-add-novedad">Reportar novedad</button>
       </div>
@@ -439,6 +447,17 @@
     </div>
 
     <div class="catalog-section">
+      <h2 style="font-size:15px; margin-bottom:10px;">Equipos (Novedades)</h2>
+      <p class="note" style="margin-bottom:10px;">Equipos de cada área sobre los que se reportan novedades (ej: Molino de Bolas 1, Molino de Bolas 3). Al reportar una novedad, el equipo se elige según el área seleccionada.</p>
+      <div id="catalog-equipos"></div>
+      <div class="add-form">
+        <div class="field"><label for="new-equipo-area">Área</label><select id="new-equipo-area"></select></div>
+        <div class="field"><label for="new-equipo-nombre">Nuevo equipo</label><input type="text" id="new-equipo-nombre" placeholder="Ej: Molino de Bolas 3"></div>
+        <button class="btn" id="btn-add-equipo">Agregar equipo</button>
+      </div>
+    </div>
+
+    <div class="catalog-section">
       <h2 style="font-size:15px; margin-bottom:10px;">Tipos de falla (Novedades)</h2>
       <p class="note" style="margin-bottom:10px;">Define los tipos de falla que aparecen al reportar una novedad, según disciplina (Mecánico, Eléctrico, Instrumentación).</p>
       <div id="catalog-tipos-falla"></div>
@@ -476,6 +495,10 @@
   ];
   var DEFAULT_ACTIVIDADES = [
     {id:"act-carguio-acero", areaId:"area-molienda-convencional", nombre:"Carguío de acero (bolas) en molienda convencional", descripcion:"Verificar carguío según programa de molienda", orden:1}
+  ];
+  var DEFAULT_EQUIPOS = [
+    {id:"eq-molino-bolas-1", areaId:"area-molienda-convencional", nombre:"Molino de Bolas 1", orden:1},
+    {id:"eq-molino-bolas-3", areaId:"area-molienda-convencional", nombre:"Molino de Bolas 3", orden:2}
   ];
   var DEFAULT_TIPOS_FALLA = [
     {id:"falla-mec-ducto-alimentacion", disciplina:"mecanico", nombre:"Ducto de alimentación", orden:1},
@@ -516,6 +539,7 @@
     areas: DEFAULT_AREAS.slice(),
     actividades: DEFAULT_ACTIVIDADES.slice(),
     tiposFalla: DEFAULT_TIPOS_FALLA.slice(),
+    equipos: DEFAULT_EQUIPOS.slice(),
     novedades: [],
     novFilter: "pendientes",
     novTurno: "A",
@@ -536,6 +560,7 @@
   var unsubAct = null;
   var unsubTiposFalla = null;
   var unsubNovedades = null;
+  var unsubEquipos = null;
 
   function todayStr(d){
     d = d || new Date();
@@ -567,6 +592,7 @@
   function areaById(id){ return state.areas.filter(function(a){ return a.id === id; })[0]; }
   function actById(id){ return state.actividades.filter(function(a){ return a.id === id; })[0]; }
   function tipoFallaById(id){ return state.tiposFalla.filter(function(t){ return t.id === id; })[0]; }
+  function equipoById(id){ return state.equipos.filter(function(e){ return e.id === id; })[0]; }
   function disciplinaLabel(key){ return DISCIPLINAS[key] || key; }
   function armConfirm(btn, label, onConfirm){
     if (!btn.classList.contains("confirming")){
@@ -794,12 +820,26 @@
     });
   });
 
+  document.getElementById("nov-area").addEventListener("change", function(){
+    populateNovEquipoSelect();
+  });
+
   function populateNovAreaSelect(){
     var sel = document.getElementById("nov-area");
     var current = sel.value;
     var opts = activeAreas();
     sel.innerHTML = opts.map(function(a){ return '<option value="' + esc(a.id) + '">' + esc(a.nombre) + '</option>'; }).join("");
     if (opts.some(function(a){ return a.id === current; })) sel.value = current;
+  }
+  function populateNovEquipoSelect(){
+    var sel = document.getElementById("nov-equipo");
+    var current = sel.value;
+    var areaId = document.getElementById("nov-area").value;
+    var opts = state.equipos.filter(function(e){ return e.activo !== false && e.areaId === areaId; })
+      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+    sel.innerHTML = opts.length ? opts.map(function(e){ return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join("")
+      : '<option value="">Sin equipos en esta área — agrégalos en Catálogo</option>';
+    if (opts.some(function(e){ return e.id === current; })) sel.value = current;
   }
   function populateNovTipoFallaSelect(){
     var sel = document.getElementById("nov-tipo-falla");
@@ -817,13 +857,14 @@
   }
 
   document.getElementById("btn-add-novedad").addEventListener("click", function(){
-    var equipoInput = document.getElementById("nov-equipo");
     var comentarioInput = document.getElementById("nov-comentario");
     var areaSel = document.getElementById("nov-area");
+    var equipoSel = document.getElementById("nov-equipo");
     var tipoSel = document.getElementById("nov-tipo-falla");
-    var equipo = equipoInput.value.trim();
+    var compromisoInput = document.getElementById("nov-compromiso");
+    var equipo = equipoById(equipoSel.value);
     var tipo = tipoFallaById(tipoSel.value);
-    if (!equipo){ showToast("Falta indicar el equipo"); return; }
+    if (!equipo){ showToast("Selecciona un equipo (agrégalos en Catálogo)"); return; }
     if (!tipo){ showToast("Selecciona un tipo de falla"); return; }
     var area = areaById(areaSel.value);
     var data = {
@@ -831,12 +872,15 @@
       turno: state.novTurno,
       areaId: areaSel.value || "",
       areaNombre: area ? area.nombre : "",
-      equipo: equipo,
+      equipoId: equipo.id,
+      equipo: equipo.nombre,
       disciplina: state.novDisciplina,
       tipoFallaId: tipo.id,
       tipoFallaNombre: tipo.nombre,
       comentario: comentarioInput.value.trim(),
       estado: "pendiente",
+      avance: 0,
+      fechaCompromiso: compromisoInput.value || "",
       reportadoPor: novResponsableInput.value.trim(),
       resueltoPor: "",
       resolvedAt: null,
@@ -845,8 +889,8 @@
     };
     if (!state.db){ showToast("No disponible sin conexión"); return; }
     state.db.collection("novedades").add(data).then(function(){
-      equipoInput.value = "";
       comentarioInput.value = "";
+      compromisoInput.value = "";
       showToast("Novedad reportada");
     }).catch(function(err){ showToast("Error: " + err.code); });
   });
@@ -854,9 +898,9 @@
   function resolveNovedad(id){
     if (!state.db){ showToast("No disponible sin conexión"); return; }
     state.db.collection("novedades").doc(id).update({
-      estado: "ok", resolvedAt: new Date().toISOString(),
+      estado: "finalizada", avance: 100, resolvedAt: new Date().toISOString(),
       resueltoPor: novResponsableInput.value.trim(), updatedAt: new Date().toISOString()
-    }).then(function(){ showToast("Novedad marcada OK"); })
+    }).then(function(){ showToast("Novedad finalizada"); })
       .catch(function(err){ showToast("Error: " + err.code); });
   }
   function reopenNovedad(id){
@@ -866,6 +910,13 @@
     }).then(function(){ showToast("Novedad reabierta"); })
       .catch(function(err){ showToast("Error: " + err.code); });
   }
+  function updateNovedadCampo(id, patch){
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    patch.updatedAt = new Date().toISOString();
+    state.db.collection("novedades").doc(id).update(patch)
+      .then(function(){ showToast("Novedad actualizada"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  }
   function deleteNovedad(id){
     if (!state.db){ showToast("No disponible sin conexión"); return; }
     state.db.collection("novedades").doc(id).delete()
@@ -873,23 +924,59 @@
       .catch(function(err){ showToast("Error: " + err.code); });
   }
 
+  function esFinalizada(n){ return n.estado === "finalizada" || n.estado === "ok"; }
+  function diasDePlazo(n){
+    if (!n.fechaCompromiso) return null;
+    return -daysSince(n.fechaCompromiso);
+  }
+
   function renderNovedadCard(n){
-    var estadoTag = n.estado === "ok" ? '<span class="estado-tag ok">Resuelta</span>' :
-      '<span class="estado-tag pendiente">Pendiente' + (n.fecha ? " · " + daysSince(n.fecha) + " día" + (daysSince(n.fecha) === 1 ? "" : "s") : "") + '</span>';
+    var finalizada = esFinalizada(n);
+    var abierta = n.fecha ? daysSince(n.fecha) : 0;
+    var estadoTag = finalizada ? '<span class="estado-tag ok">Finalizada</span>' :
+      '<span class="estado-tag pendiente">Pendiente · ' + abierta + " día" + (abierta === 1 ? "" : "s") + '</span>';
     var discTag = '<span class="disc-tag ' + esc(n.disciplina) + '">' + esc(disciplinaLabel(n.disciplina)) + '</span>';
-    var actions = n.estado === "ok"
+    var avance = typeof n.avance === "number" ? n.avance : (finalizada ? 100 : 0);
+    var plazo = diasDePlazo(n);
+    var plazoTxt = "";
+    if (n.fechaCompromiso){
+      if (finalizada) plazoTxt = '<span style="color:var(--text-muted);">Entrega comprometida ' + esc(n.fechaCompromiso) + '</span>';
+      else if (plazo < 0) plazoTxt = '<span style="color:var(--bad); font-weight:600;">Atrasada ' + Math.abs(plazo) + " día" + (Math.abs(plazo) === 1 ? "" : "s") + '</span>';
+      else if (plazo === 0) plazoTxt = '<span style="color:var(--warn); font-weight:600;">Vence hoy</span>';
+      else plazoTxt = '<span style="color:var(--text-muted);">Faltan ' + plazo + " día" + (plazo === 1 ? "" : "s") + '</span>';
+    } else {
+      plazoTxt = '<span style="color:var(--text-muted);">Sin fecha comprometida</span>';
+    }
+
+    var actions = finalizada
       ? '<button type="button" class="btn-small" data-nov-reopen data-id="' + esc(n.id) + '">Reabrir</button>' +
         '<button type="button" class="btn-small" data-nov-delete data-id="' + esc(n.id) + '">Eliminar</button>'
-      : '<button type="button" class="btn success" style="padding:6px 12px; font-size:12.5px;" data-nov-resolve data-id="' + esc(n.id) + '">Marcar OK</button>' +
+      : '<button type="button" class="btn success" style="padding:6px 12px; font-size:12.5px;" data-nov-resolve data-id="' + esc(n.id) + '">Marcar finalizada</button>' +
         '<button type="button" class="btn-small" data-nov-delete data-id="' + esc(n.id) + '">Eliminar</button>';
+
+    var controles = finalizada ? '' :
+      '<div style="display:flex; flex-wrap:wrap; gap:16px; align-items:flex-end; margin-top:12px;">' +
+        '<div class="field"><label for="av-' + esc(n.id) + '">Avance %</label>' +
+        '<input type="number" id="av-' + esc(n.id) + '" min="0" max="100" step="5" value="' + avance + '" data-nov-avance data-id="' + esc(n.id) + '" style="width:80px;"></div>' +
+        '<div class="field"><label for="fc-' + esc(n.id) + '">Entrega comprometida</label>' +
+        '<input type="date" id="fc-' + esc(n.id) + '" value="' + esc(n.fechaCompromiso || "") + '" data-nov-compromiso data-id="' + esc(n.id) + '"></div>' +
+      '</div>';
+
     var metaLine = "Reportada " + esc(n.fecha) + " turno " + esc(n.turno) + (n.reportadoPor ? " por " + esc(n.reportadoPor) : "") +
-      (n.estado === "ok" && n.resolvedAt ? " · Resuelta " + esc(new Date(n.resolvedAt).toLocaleDateString("es-CL")) + (n.resueltoPor ? " por " + esc(n.resueltoPor) : "") : "");
+      (finalizada && n.resolvedAt ? " · Finalizada " + esc(new Date(n.resolvedAt).toLocaleDateString("es-CL")) + (n.resueltoPor ? " por " + esc(n.resueltoPor) : "") : "");
+
     return '<div class="activity-card">' +
       '<div class="activity-top"><div><div class="activity-name">' + esc(n.equipo) +
       (n.areaNombre ? ' <span style="font-weight:400; color:var(--text-muted);">— ' + esc(n.areaNombre) + '</span>' : '') + '</div>' +
       '<div class="activity-desc">' + esc(n.tipoFallaNombre) + '</div></div>' +
       '<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' + discTag + estadoTag + '</div></div>' +
       (n.comentario ? '<div class="row-meta" style="font-family:inherit; color:var(--text); margin-top:10px;">' + esc(n.comentario) + '</div>' : '') +
+      '<div class="bar-row" style="margin-top:12px; grid-template-columns:70px 1fr 48px;">' +
+        '<div style="font-size:12px; color:var(--text-muted);">Avance</div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + avance + '%; background:' + (finalizada ? "var(--good)" : "var(--accent)") + ';"></div></div>' +
+        '<div class="bar-pct">' + avance + '%</div></div>' +
+      '<div class="row-meta" style="font-family:inherit;">' + plazoTxt + '</div>' +
+      controles +
       '<div class="row-meta">' + metaLine + '</div>' +
       '<div style="display:flex; gap:14px; margin-top:10px; align-items:center;">' + actions + '</div></div>';
   }
@@ -897,7 +984,7 @@
   function renderNovedadesList(){
     var listEl = document.getElementById("novedades-list");
     var items = state.novedades.slice();
-    if (state.novFilter === "pendientes") items = items.filter(function(n){ return n.estado !== "ok"; });
+    if (state.novFilter === "pendientes") items = items.filter(function(n){ return !esFinalizada(n); });
     items.sort(function(a,b){
       var ka = (a.fecha||"") + (a.turno||""), kb = (b.fecha||"") + (b.turno||"");
       return ka < kb ? -1 : (ka > kb ? 1 : 0);
@@ -917,16 +1004,46 @@
           armConfirm(btn, "¿Confirmar?", function(){ deleteNovedad(btn.getAttribute("data-id")); });
         });
       });
+      listEl.querySelectorAll("[data-nov-avance]").forEach(function(input){
+        input.addEventListener("change", function(){
+          var v = Math.max(0, Math.min(100, Number(input.value) || 0));
+          updateNovedadCampo(input.getAttribute("data-id"), { avance: v });
+        });
+      });
+      listEl.querySelectorAll("[data-nov-compromiso]").forEach(function(input){
+        input.addEventListener("change", function(){
+          updateNovedadCampo(input.getAttribute("data-id"), { fechaCompromiso: input.value || "" });
+        });
+      });
     }
-    var pendCount = state.novedades.filter(function(n){ return n.estado !== "ok"; }).length;
-    document.getElementById("novedades-chip").textContent = pendCount + " pendiente" + (pendCount === 1 ? "" : "s");
+    renderNovedadesKpis();
+  }
+
+  function renderNovedadesKpis(){
+    var pendientes = state.novedades.filter(function(n){ return !esFinalizada(n); });
+    var finalizadas = state.novedades.filter(esFinalizada);
+    var atrasadas = pendientes.filter(function(n){
+      var p = diasDePlazo(n);
+      return p !== null && p < 0;
+    });
+    var avancePromedio = pendientes.length
+      ? Math.round(pendientes.reduce(function(acc, n){ return acc + (typeof n.avance === "number" ? n.avance : 0); }, 0) / pendientes.length)
+      : null;
+
+    document.getElementById("kpi-nov-pendientes").textContent = pendientes.length;
+    document.getElementById("kpi-nov-finalizadas").textContent = finalizadas.length;
+    document.getElementById("kpi-nov-atrasadas").textContent = atrasadas.length;
+    document.getElementById("kpi-nov-avance").textContent = avancePromedio === null ? "—" : avancePromedio + "%";
+
+    document.getElementById("novedades-chip").textContent = pendientes.length + " pendiente" + (pendientes.length === 1 ? "" : "s");
     var badge = document.getElementById("novedades-badge");
-    badge.hidden = pendCount === 0;
-    badge.textContent = pendCount > 99 ? "99+" : pendCount;
+    badge.hidden = pendientes.length === 0;
+    badge.textContent = pendientes.length > 99 ? "99+" : pendientes.length;
   }
 
   function renderNovedades(){
     populateNovAreaSelect();
+    populateNovEquipoSelect();
     populateNovTipoFallaSelect();
     renderNovedadesList();
   }
@@ -942,6 +1059,41 @@
     state.db.collection("tipos_falla").add(data).then(function(){ nombreInput.value = ""; showToast("Tipo de falla agregado"); })
       .catch(function(err){ showToast("Error: " + err.code); });
   });
+
+  document.getElementById("btn-add-equipo").addEventListener("click", function(){
+    var nombreInput = document.getElementById("new-equipo-nombre");
+    var areaId = document.getElementById("new-equipo-area").value;
+    var nombre = nombreInput.value.trim();
+    if (!nombre || !areaId) return;
+    var orden = state.equipos.length ? Math.max.apply(null, state.equipos.map(function(e){ return e.orden||0; })) + 1 : 1;
+    var data = { areaId: areaId, nombre: nombre, orden: orden, activo: true };
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("equipos").add(data).then(function(){ nombreInput.value = ""; showToast("Equipo agregado"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  });
+
+  function renderCatalogoEquipos(){
+    var html = state.equipos.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(e){
+      var area = areaById(e.areaId);
+      return '<div class="catalog-row' + (e.activo === false ? ' inactive' : '') + '">' +
+        '<input type="text" value="' + esc(e.nombre) + '" data-equipo-field="nombre" data-id="' + esc(e.id) + '">' +
+        '<input type="number" value="' + (e.orden||0) + '" data-equipo-field="orden" data-id="' + esc(e.id) + '" title="Orden">' +
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (e.activo!==false?'checked':'') + ' data-equipo-field="activo" data-id="' + esc(e.id) + '"> Activo</label>' +
+        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span></div>';
+    }).join("");
+    document.getElementById("catalog-equipos").innerHTML = html || '<p class="empty-note">Sin equipos. Agrega los equipos de cada área para poder reportar novedades.</p>';
+
+    var sel = document.getElementById("new-equipo-area");
+    sel.innerHTML = activeAreas().map(function(a){ return '<option value="' + esc(a.id) + '">' + esc(a.nombre) + '</option>'; }).join("");
+
+    document.querySelectorAll("[data-equipo-field]").forEach(function(el){
+      el.addEventListener("change", function(){
+        var id = el.getAttribute("data-id"), field = el.getAttribute("data-equipo-field");
+        var val = el.type === "checkbox" ? el.checked : (el.type === "number" ? Number(el.value) : el.value);
+        saveCatalogField("equipos", id, field, val, state.equipos);
+      });
+    });
+  }
 
   function renderCatalogoTiposFalla(){
     var html = state.tiposFalla.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(t){
@@ -1212,6 +1364,7 @@
       });
     });
 
+    renderCatalogoEquipos();
     renderCatalogoTiposFalla();
   }
 
@@ -1270,6 +1423,7 @@
           state.areas = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         }
         renderRegistro();
+        renderNovedades();
         if (state.view === "catalogo") renderCatalogo();
         if (state.view === "dashboard") renderDashboard();
       }, function(err){ showToast("Error catálogo áreas: " + err.code); });
@@ -1283,6 +1437,14 @@
         if (state.view === "dashboard") renderDashboard();
       }, function(err){ showToast("Error catálogo actividades: " + err.code); });
 
+      unsubEquipos = db.collection("equipos").onSnapshot(function(snap){
+        if (!snap.empty){
+          state.equipos = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        }
+        renderNovedades();
+        if (state.view === "catalogo") renderCatalogo();
+      }, function(err){ showToast("Error catálogo equipos: " + err.code); });
+
       unsubTiposFalla = db.collection("tipos_falla").onSnapshot(function(snap){
         if (!snap.empty){
           state.tiposFalla = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
@@ -1294,10 +1456,6 @@
       unsubNovedades = db.collection("novedades").limit(1000).onSnapshot(function(snap){
         state.novedades = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         renderNovedadesList();
-        var pendCount = state.novedades.filter(function(n){ return n.estado !== "ok"; }).length;
-        var badge = document.getElementById("novedades-badge");
-        badge.hidden = pendCount === 0;
-        badge.textContent = pendCount > 99 ? "99+" : pendCount;
       }, function(err){ showToast("Error novedades: " + err.code); });
 
       subscribeShift();
