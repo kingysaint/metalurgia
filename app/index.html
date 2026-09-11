@@ -1,0 +1,874 @@
+<title>Bitácora de Turno</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    --bg:#f0f3f5;
+    --surface:#ffffff;
+    --surface-2:#f7f9fa;
+    --text:#161f26;
+    --text-muted:#5c6b76;
+    --border:#d7dfe4;
+    --accent:#a85a28;
+    --accent-contrast:#ffffff;
+    --good:#276a4d;
+    --good-bg:#e3f1ea;
+    --warn:#96650f;
+    --warn-bg:#f7ecd6;
+    --bad:#a03636;
+    --bad-bg:#f6e3e1;
+    --pending:#5c6b76;
+    --pending-bg:#e8ecef;
+    --shadow:0 1px 2px rgba(15,25,35,.06),0 1px 12px rgba(15,25,35,.05);
+    --radius:10px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#11161b;
+      --surface:#1a2129;
+      --surface-2:#20282f;
+      --text:#e8eef2;
+      --text-muted:#93a3ae;
+      --border:#2b353d;
+      --accent:#e08a4f;
+      --accent-contrast:#1a1006;
+      --good:#59b88a;
+      --good-bg:#173226;
+      --warn:#dcab48;
+      --warn-bg:#382c11;
+      --bad:#e0736c;
+      --bad-bg:#3a1f1d;
+      --pending:#93a3ae;
+      --pending-bg:#232d34;
+      --shadow:0 1px 2px rgba(0,0,0,.3),0 1px 12px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#11161b;
+    --surface:#1a2129;
+    --surface-2:#20282f;
+    --text:#e8eef2;
+    --text-muted:#93a3ae;
+    --border:#2b353d;
+    --accent:#e08a4f;
+    --accent-contrast:#1a1006;
+    --good:#59b88a;
+    --good-bg:#173226;
+    --warn:#dcab48;
+    --warn-bg:#382c11;
+    --bad:#e0736c;
+    --bad-bg:#3a1f1d;
+    --pending:#93a3ae;
+    --pending-bg:#232d34;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 1px 12px rgba(0,0,0,.3);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"IBM Plex Mono",ui-monospace,monospace;}
+  h1,h2,h3{text-wrap:balance; font-family:"IBM Plex Sans",sans-serif; margin:0;}
+  button{font-family:inherit;}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px;}
+
+  .topbar{
+    position:sticky; top:0; z-index:20;
+    background:var(--surface);
+    border-bottom:1px solid var(--border);
+  }
+  .topbar-inner{
+    max-width:1080px; margin:0 auto;
+    display:flex; align-items:center; gap:20px;
+    padding:14px 20px;
+    flex-wrap:wrap;
+  }
+  .brand{display:flex; align-items:center; gap:10px; margin-right:auto;}
+  .brand-mark{
+    width:32px; height:32px; border-radius:8px;
+    background:var(--accent); color:var(--accent-contrast);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:15px; flex:none;
+  }
+  .brand-text h1{font-size:16px; font-weight:700;}
+  .brand-text p{margin:0; font-size:12px; color:var(--text-muted);}
+  nav.tabs{display:flex; gap:4px;}
+  .tab-btn{
+    border:1px solid transparent; background:transparent; color:var(--text-muted);
+    padding:8px 14px; border-radius:8px; font-size:13.5px; font-weight:500; cursor:pointer;
+  }
+  .tab-btn[aria-current="true"]{background:var(--surface-2); color:var(--text); border-color:var(--border);}
+  .tab-btn:hover{color:var(--text);}
+  .status-dot{width:8px; height:8px; border-radius:50%; background:var(--pending); flex:none;}
+  .status-dot.online{background:var(--good);}
+  .status-pill{
+    display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-muted);
+    padding:6px 10px; border:1px solid var(--border); border-radius:999px;
+  }
+
+  .container{max-width:1080px; margin:0 auto; padding:24px 20px 80px;}
+  .view[hidden]{display:none;}
+
+  .banner{
+    display:flex; gap:10px; align-items:flex-start;
+    background:var(--warn-bg); color:var(--warn); border:1px solid var(--warn);
+    border-radius:var(--radius); padding:12px 14px; font-size:13.5px; margin-bottom:18px;
+  }
+
+  .toolbar{
+    display:flex; flex-wrap:wrap; gap:12px; align-items:flex-end;
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; margin-bottom:20px; box-shadow:var(--shadow);
+  }
+  .field{display:flex; flex-direction:column; gap:5px;}
+  .field label{font-size:11.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+  input[type="date"],input[type="text"],textarea,select{
+    font-family:inherit; font-size:14px; color:var(--text); background:var(--surface-2);
+    border:1px solid var(--border); border-radius:7px; padding:8px 10px;
+  }
+  textarea{resize:vertical; min-height:56px; font-family:inherit;}
+  .seg{display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden;}
+  .seg button{
+    border:none; background:var(--surface-2); color:var(--text-muted);
+    padding:8px 16px; font-size:13.5px; font-weight:600; cursor:pointer;
+    border-right:1px solid var(--border);
+  }
+  .seg button:last-child{border-right:none;}
+  .seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-contrast);}
+  .spacer{flex:1;}
+  .progress-chip{
+    font-size:13px; color:var(--text-muted); font-variant-numeric:tabular-nums;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:999px;
+    padding:8px 14px; white-space:nowrap;
+  }
+  .progress-chip strong{color:var(--text); font-family:"IBM Plex Mono",monospace;}
+
+  .area-group{margin-bottom:22px;}
+  .area-title{
+    display:flex; align-items:baseline; gap:8px; margin-bottom:10px;
+    font-size:14px; font-weight:700; color:var(--text);
+  }
+  .area-title .count{font-size:12px; font-weight:500; color:var(--text-muted); font-family:"IBM Plex Mono",monospace;}
+  .activity-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:14px 16px; margin-bottom:10px; box-shadow:var(--shadow);
+  }
+  .activity-top{display:flex; flex-wrap:wrap; gap:12px 16px; align-items:center; justify-content:space-between;}
+  .activity-name{font-size:14.5px; font-weight:600; flex:1; min-width:220px;}
+  .activity-desc{font-size:12.5px; color:var(--text-muted); margin-top:2px;}
+  .estado-seg{display:flex; border:1px solid var(--border); border-radius:7px; overflow:hidden; flex:none;}
+  .estado-btn{
+    border:none; border-right:1px solid var(--border); background:var(--surface-2);
+    color:var(--text-muted); padding:7px 12px; font-size:12.5px; font-weight:600; cursor:pointer;
+    white-space:nowrap;
+  }
+  .estado-btn:last-child{border-right:none;}
+  .estado-btn[aria-pressed="true"].realizado{background:var(--good-bg); color:var(--good);}
+  .estado-btn[aria-pressed="true"].no_realizado{background:var(--bad-bg); color:var(--bad);}
+  .estado-btn[aria-pressed="true"].no_aplica{background:var(--pending-bg); color:var(--text);}
+  .comentario-box{margin-top:12px;}
+  .comentario-box label{display:block; font-size:11.5px; font-weight:600; color:var(--bad); margin-bottom:5px;}
+  .row-meta{font-size:11px; color:var(--text-muted); margin-top:8px; font-family:"IBM Plex Mono",monospace;}
+
+  .kpi-row{display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:20px;}
+  .kpi-tile{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:16px; box-shadow:var(--shadow);
+  }
+  .kpi-tile .label{font-size:11.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+  .kpi-tile .value{font-family:"IBM Plex Mono",monospace; font-size:28px; font-weight:600; margin-top:6px;}
+  .kpi-tile .value.good{color:var(--good);}
+  .kpi-tile .value.bad{color:var(--bad);}
+
+  .panel{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:18px; margin-bottom:20px; box-shadow:var(--shadow);
+  }
+  .panel h2{font-size:15px; margin-bottom:14px;}
+  .bar-row{display:grid; grid-template-columns:150px 1fr 48px; align-items:center; gap:10px; margin-bottom:9px; font-size:13px;}
+  .bar-track{background:var(--surface-2); border-radius:5px; height:14px; overflow:hidden;}
+  .bar-fill{height:100%; background:var(--accent); border-radius:5px;}
+  .bar-pct{font-family:"IBM Plex Mono",monospace; font-size:12.5px; text-align:right; color:var(--text-muted);}
+
+  table{width:100%; border-collapse:collapse; font-size:13px;}
+  th,td{text-align:left; padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top;}
+  th{font-size:11px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted); font-weight:600;}
+  .table-wrap{overflow-x:auto;}
+  .estado-tag{
+    display:inline-block; padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:600;
+  }
+  .estado-tag.no_realizado{background:var(--bad-bg); color:var(--bad);}
+  .empty-note{color:var(--text-muted); font-size:13px; padding:10px 2px;}
+
+  .btn{
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+    padding:9px 15px; border-radius:7px; font-size:13.5px; font-weight:600; cursor:pointer;
+  }
+  .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+  .btn:disabled{opacity:.5; cursor:not-allowed;}
+
+  .catalog-section{margin-bottom:26px;}
+  .catalog-row{
+    display:grid; grid-template-columns:1fr 90px 90px 90px; gap:10px; align-items:center;
+    padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;
+  }
+  .catalog-row.inactive{opacity:.5;}
+  .catalog-row input[type="text"]{width:100%;}
+  .catalog-row input[type="number"]{width:64px; padding:7px 8px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); color:var(--text); font-family:inherit;}
+  .add-form{display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; align-items:flex-end;}
+  .add-form .field{min-width:160px; flex:1;}
+  .note{font-size:12.5px; color:var(--text-muted); line-height:1.5;}
+
+  .toast{
+    position:fixed; left:50%; bottom:22px; transform:translateX(-50%);
+    background:var(--text); color:var(--bg); padding:9px 16px; border-radius:999px;
+    font-size:13px; font-weight:500; box-shadow:var(--shadow); z-index:50;
+  }
+  .toast[hidden]{display:none;}
+
+  @media (max-width:560px){
+    .catalog-row{grid-template-columns:1fr; gap:6px;}
+    .bar-row{grid-template-columns:1fr; gap:4px;}
+    .activity-top{flex-direction:column; align-items:stretch;}
+  }
+</style>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">BT</div>
+      <div class="brand-text">
+        <h1>Bitácora de Turno</h1>
+        <p>Control operacional de actividades por turno</p>
+      </div>
+    </div>
+    <nav class="tabs" aria-label="Secciones">
+      <button class="tab-btn" data-view="registro" aria-current="true" id="nav-registro">Registro</button>
+      <button class="tab-btn" data-view="dashboard" id="nav-dashboard">Dashboard</button>
+      <button class="tab-btn" data-view="catalogo" id="nav-catalogo">Catálogo</button>
+    </nav>
+    <div class="status-pill"><span class="status-dot" id="status-dot"></span><span id="status-text">Conectando…</span></div>
+  </div>
+</header>
+
+<main class="container">
+
+  <section id="view-registro" class="view">
+    <div id="banner-offline" class="banner" hidden>
+      <strong>Sin conexión a la base de datos.</strong>&nbsp;Estás viendo una vista de referencia: los cambios no se guardarán hasta que se restablezca la conexión.
+    </div>
+    <div class="toolbar">
+      <div class="field">
+        <label for="input-fecha">Fecha</label>
+        <input type="date" id="input-fecha">
+      </div>
+      <div class="field">
+        <label>Turno</label>
+        <div class="seg" role="group" aria-label="Turno">
+          <button type="button" data-turno="A" aria-pressed="true">Turno A</button>
+          <button type="button" data-turno="C" aria-pressed="false">Turno C</button>
+        </div>
+      </div>
+      <div class="field" style="min-width:220px; flex:1;">
+        <label for="input-responsable">Responsable del registro</label>
+        <input type="text" id="input-responsable" placeholder="Nombre y cargo">
+      </div>
+      <div class="spacer"></div>
+      <div class="progress-chip" id="progress-chip">0 / 0 registradas</div>
+    </div>
+    <div id="registro-list"></div>
+  </section>
+
+  <section id="view-dashboard" class="view" hidden>
+    <div class="toolbar">
+      <div class="field">
+        <label for="dash-start">Desde</label>
+        <input type="date" id="dash-start">
+      </div>
+      <div class="field">
+        <label for="dash-end">Hasta</label>
+        <input type="date" id="dash-end">
+      </div>
+      <div class="field">
+        <label>Rango rápido</label>
+        <div class="seg">
+          <button type="button" data-range="7">7 días</button>
+          <button type="button" data-range="14">14 días</button>
+          <button type="button" data-range="30">30 días</button>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <button class="btn" id="btn-export">Exportar CSV</button>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi-tile"><div class="label">Cumplimiento</div><div class="value good" id="kpi-cumplimiento">—</div></div>
+      <div class="kpi-tile"><div class="label">No realizadas</div><div class="value bad" id="kpi-no-realizadas">—</div></div>
+      <div class="kpi-tile"><div class="label">Turnos registrados</div><div class="value" id="kpi-turnos">—</div></div>
+      <div class="kpi-tile"><div class="label">Sin registrar</div><div class="value" id="kpi-pendientes">—</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Cumplimiento por área</h2>
+      <div id="bars-area"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Tendencia diaria</h2>
+      <div id="trend-chart"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Actividades no realizadas en el período</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Turno</th><th>Área</th><th>Actividad</th><th>Comentario</th><th>Responsable</th></tr></thead>
+          <tbody id="tabla-no-realizadas"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section id="view-catalogo" class="view" hidden>
+    <p class="note" style="margin-bottom:18px;">
+      Este catálogo define qué actividades aparecen en el Registro diario. Las áreas y actividades vienen precargadas
+      como ejemplo — ajústalas a las actividades reales de tu operación. Desactivar una actividad la oculta del
+      registro sin borrar el historial ya guardado.
+    </p>
+
+    <div class="catalog-section">
+      <h2 style="font-size:15px; margin-bottom:10px;">Áreas / Plantas</h2>
+      <div id="catalog-areas"></div>
+      <div class="add-form">
+        <div class="field"><label for="new-area-nombre">Nueva área</label><input type="text" id="new-area-nombre" placeholder="Ej: Correas OCP"></div>
+        <button class="btn" id="btn-add-area">Agregar área</button>
+      </div>
+    </div>
+
+    <div class="catalog-section">
+      <h2 style="font-size:15px; margin-bottom:10px;">Actividades</h2>
+      <div id="catalog-actividades"></div>
+      <div class="add-form">
+        <div class="field"><label for="new-act-area">Área</label>
+          <select id="new-act-area"></select>
+        </div>
+        <div class="field"><label for="new-act-nombre">Nueva actividad</label><input type="text" id="new-act-nombre" placeholder="Ej: Inspección de filtro de prensa"></div>
+        <button class="btn" id="btn-add-actividad">Agregar actividad</button>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var DEFAULT_AREAS = [
+    {id:"area-planta-convencional", nombre:"Planta Convencional / Molienda", orden:1},
+    {id:"area-chancado", nombre:"Chancado", orden:2},
+    {id:"area-flotacion", nombre:"Flotación", orden:3}
+  ];
+  var DEFAULT_ACTIVIDADES = [
+    {id:"act-carguio-acero", areaId:"area-planta-convencional", nombre:"Carguío de acero (bolas) en molienda convencional", descripcion:"Verificar carguío según programa de molienda", orden:1},
+    {id:"act-flujo-agua", areaId:"area-planta-convencional", nombre:"Verificación de flujo de agua de proceso", descripcion:"", orden:2},
+    {id:"act-amperaje-motores", areaId:"area-planta-convencional", nombre:"Control de amperaje de motores de molino", descripcion:"", orden:3},
+    {id:"act-inspeccion-correas", areaId:"area-chancado", nombre:"Inspección visual de correas transportadoras", descripcion:"", orden:4},
+    {id:"act-control-granulometria", areaId:"area-chancado", nombre:"Control granulométrico de mineral chancado", descripcion:"", orden:5},
+    {id:"act-nivel-pulpa-celdas", areaId:"area-flotacion", nombre:"Control de nivel de pulpa en celdas", descripcion:"", orden:6},
+    {id:"act-muestreo-leyes", areaId:"area-flotacion", nombre:"Muestreo de leyes de cobre en concentrado", descripcion:"", orden:7}
+  ];
+
+  var ESTADOS = [
+    {key:"realizado", label:"Realizado"},
+    {key:"no_realizado", label:"No realizado"},
+    {key:"no_aplica", label:"No aplica"}
+  ];
+
+  var state = {
+    db:null,
+    downloads:null,
+    areas: DEFAULT_AREAS.slice(),
+    actividades: DEFAULT_ACTIVIDADES.slice(),
+    fecha: todayStr(),
+    turno: "A",
+    shiftDoc: null,
+    shiftDocId: null,
+    dashDocs: [],
+    dashStart: null,
+    dashEnd: null,
+    view: "registro"
+  };
+
+  var unsubShift = null;
+  var unsubRange = null;
+  var unsubAreas = null;
+  var unsubAct = null;
+
+  function todayStr(d){
+    d = d || new Date();
+    return d.getFullYear() + "-" + pad(d.getMonth()+1) + "-" + pad(d.getDate());
+  }
+  function pad(n){ return n < 10 ? "0"+n : ""+n; }
+  function addDays(dateStr, n){
+    var parts = dateStr.split("-").map(Number);
+    var d = new Date(parts[0], parts[1]-1, parts[2]);
+    d.setDate(d.getDate() + n);
+    return todayStr(d);
+  }
+  function shiftDocId(fecha, turno){ return fecha + "_" + turno; }
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function showToast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function(){ t.hidden = true; }, 2200);
+  }
+
+  function activeAreas(){ return state.areas.filter(function(a){ return a.activo !== false; }).sort(function(a,b){ return (a.orden||0)-(b.orden||0); }); }
+  function activeActividades(){ return state.actividades.filter(function(a){ return a.activo !== false; }); }
+  function areaById(id){ return state.areas.filter(function(a){ return a.id === id; })[0]; }
+  function actById(id){ return state.actividades.filter(function(a){ return a.id === id; })[0]; }
+
+  // ---------- Views ----------
+  document.querySelectorAll(".tab-btn").forEach(function(btn){
+    btn.addEventListener("click", function(){ switchView(btn.getAttribute("data-view")); });
+  });
+  function switchView(view){
+    state.view = view;
+    ["registro","dashboard","catalogo"].forEach(function(v){
+      document.getElementById("view-"+v).hidden = (v !== view);
+      document.getElementById("nav-"+v).setAttribute("aria-current", v === view ? "true" : "false");
+    });
+    if (view === "dashboard") renderDashboard();
+    if (view === "catalogo") renderCatalogo();
+  }
+
+  // ---------- Registro ----------
+  var inputFecha = document.getElementById("input-fecha");
+  var inputResponsable = document.getElementById("input-responsable");
+  inputFecha.value = state.fecha;
+  inputFecha.addEventListener("change", function(){
+    state.fecha = inputFecha.value || todayStr();
+    subscribeShift();
+  });
+  document.querySelectorAll("[data-turno]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.turno = btn.getAttribute("data-turno");
+      document.querySelectorAll("[data-turno]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      subscribeShift();
+    });
+  });
+  inputResponsable.addEventListener("blur", function(){
+    saveShiftPatch({ responsable: inputResponsable.value });
+  });
+
+  function currentActividadData(actId){
+    var d = state.shiftDoc && state.shiftDoc.actividades && state.shiftDoc.actividades[actId];
+    return d || {};
+  }
+
+  function renderRegistro(){
+    var list = document.getElementById("registro-list");
+    var areas = activeAreas();
+    var acts = activeActividades();
+    inputResponsable.value = (state.shiftDoc && state.shiftDoc.responsable) || "";
+
+    var total = 0, done = 0;
+    var html = "";
+    areas.forEach(function(area){
+      var areaActs = acts.filter(function(a){ return a.areaId === area.id; }).sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      if (!areaActs.length) return;
+      html += '<div class="area-group"><div class="area-title">' + esc(area.nombre) +
+        '<span class="count">' + areaActs.length + ' actividad' + (areaActs.length===1?'':'es') + '</span></div>';
+      areaActs.forEach(function(act){
+        total++;
+        var data = currentActividadData(act.id);
+        if (data.estado) done++;
+        html += renderActivityCard(act, data);
+      });
+      html += '</div>';
+    });
+    if (!areas.length) html = '<p class="empty-note">No hay áreas activas. Ve a Catálogo para agregar actividades.</p>';
+    list.innerHTML = html;
+    document.getElementById("progress-chip").innerHTML = '<strong>' + done + '</strong> / ' + total + ' registradas';
+
+    list.querySelectorAll("[data-act-estado]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var actId = btn.getAttribute("data-act-id");
+        var estado = btn.getAttribute("data-act-estado");
+        var cur = currentActividadData(actId);
+        var nextEstado = cur.estado === estado ? null : estado;
+        updateActividad(actId, { estado: nextEstado });
+      });
+    });
+    list.querySelectorAll("[data-act-comentario]").forEach(function(ta){
+      ta.addEventListener("blur", function(){
+        updateActividad(ta.getAttribute("data-act-id"), { comentario: ta.value });
+      });
+    });
+  }
+
+  function renderActivityCard(act, data){
+    var estado = data.estado || null;
+    var btns = ESTADOS.map(function(e){
+      return '<button type="button" class="estado-btn ' + e.key + '" data-act-id="' + esc(act.id) + '" data-act-estado="' + e.key +
+        '" aria-pressed="' + (estado === e.key ? "true" : "false") + '">' + e.label + '</button>';
+    }).join("");
+    var comentario = '';
+    if (estado === "no_realizado") {
+      comentario = '<div class="comentario-box"><label for="com-' + esc(act.id) + '">Motivo por el que no se realizó (obligatorio)</label>' +
+        '<textarea id="com-' + esc(act.id) + '" data-act-comentario data-act-id="' + esc(act.id) + '" placeholder="Describe la causa…">' + esc(data.comentario) + '</textarea></div>';
+    }
+    var meta = data.updatedAt ? '<div class="row-meta">Actualizado ' + esc(new Date(data.updatedAt).toLocaleString("es-CL")) + '</div>' : '';
+    return '<div class="activity-card"><div class="activity-top"><div><div class="activity-name">' + esc(act.nombre) + '</div>' +
+      (act.descripcion ? '<div class="activity-desc">' + esc(act.descripcion) + '</div>' : '') + '</div>' +
+      '<div class="estado-seg" role="group" aria-label="Estado de ' + esc(act.nombre) + '">' + btns + '</div></div>' +
+      comentario + meta + '</div>';
+  }
+
+  function updateActividad(actId, patch){
+    var act = actById(actId);
+    if (!act) return;
+    var base = state.shiftDoc ? JSON.parse(JSON.stringify(state.shiftDoc)) : { fecha: state.fecha, turno: state.turno, actividades: {} };
+    base.actividades = base.actividades || {};
+    var cur = base.actividades[actId] || {};
+    var next = Object.assign({}, cur, patch, { areaId: act.areaId, updatedAt: new Date().toISOString() });
+    if (next.estado !== "no_realizado") next.comentario = next.comentario || "";
+    base.actividades[actId] = next;
+    state.shiftDoc = base;
+    renderRegistro();
+    persistShift(base);
+  }
+
+  function saveShiftPatch(patch){
+    var base = state.shiftDoc ? JSON.parse(JSON.stringify(state.shiftDoc)) : { fecha: state.fecha, turno: state.turno, actividades: {} };
+    Object.assign(base, patch);
+    state.shiftDoc = base;
+    persistShift(base);
+  }
+
+  function persistShift(fullDoc){
+    fullDoc.fecha = state.fecha;
+    fullDoc.turno = state.turno;
+    fullDoc.updatedAt = new Date().toISOString();
+    if (!state.db){
+      showToast("Guardado localmente (sin conexión)");
+      return;
+    }
+    state.db.collection("registros").doc(shiftDocId(state.fecha, state.turno)).set(fullDoc)
+      .then(function(){ showToast("Guardado"); })
+      .catch(function(err){ showToast("Error al guardar: " + (err && err.code || "desconocido")); });
+  }
+
+  function subscribeShift(){
+    if (unsubShift) { unsubShift(); unsubShift = null; }
+    state.shiftDoc = null;
+    renderRegistro();
+    if (!state.db) return;
+    var ref = state.db.collection("registros").doc(shiftDocId(state.fecha, state.turno));
+    unsubShift = ref.onSnapshot(function(snap){
+      state.shiftDoc = snap.exists ? snap.data() : null;
+      renderRegistro();
+    }, function(err){
+      showToast("Error de sincronización: " + err.code);
+    });
+  }
+
+  // ---------- Dashboard ----------
+  var dashStartInput = document.getElementById("dash-start");
+  var dashEndInput = document.getElementById("dash-end");
+  function setRange(days){
+    state.dashEnd = todayStr();
+    state.dashStart = addDays(state.dashEnd, -(days-1));
+    dashStartInput.value = state.dashStart;
+    dashEndInput.value = state.dashEnd;
+    subscribeRange();
+  }
+  document.querySelectorAll("[data-range]").forEach(function(btn){
+    btn.addEventListener("click", function(){ setRange(Number(btn.getAttribute("data-range"))); });
+  });
+  dashStartInput.addEventListener("change", function(){ state.dashStart = dashStartInput.value; subscribeRange(); });
+  dashEndInput.addEventListener("change", function(){ state.dashEnd = dashEndInput.value; subscribeRange(); });
+
+  function subscribeRange(){
+    if (unsubRange) { unsubRange(); unsubRange = null; }
+    if (!state.db || !state.dashStart || !state.dashEnd) { renderDashboard(); return; }
+    var q = state.db.collection("registros")
+      .where("fecha", ">=", state.dashStart)
+      .where("fecha", "<=", state.dashEnd)
+      .limit(1000);
+    unsubRange = q.onSnapshot(function(snap){
+      state.dashDocs = snap.docs.map(function(d){ return d.data(); });
+      renderDashboard();
+    }, function(err){
+      showToast("Error de sincronización: " + err.code);
+    });
+  }
+
+  function renderDashboard(){
+    if (!state.dashStart){ setRange(14); return; }
+    var docs = state.dashDocs;
+    var totalReal = 0, totalNo = 0, totalNA = 0, totalPend = 0;
+    var byArea = {};
+    var byDay = {};
+    var noRealizadas = [];
+
+    docs.forEach(function(doc){
+      byDay[doc.fecha] = byDay[doc.fecha] || {real:0, no:0};
+      var actEntries = doc.actividades || {};
+      Object.keys(actEntries).forEach(function(actId){
+        var entry = actEntries[actId];
+        var areaId = entry.areaId || (actById(actId) || {}).areaId;
+        var areaName = (areaById(areaId) || {}).nombre || "Sin área";
+        byArea[areaName] = byArea[areaName] || {real:0, no:0, na:0};
+        if (entry.estado === "realizado"){ totalReal++; byArea[areaName].real++; byDay[doc.fecha].real++; }
+        else if (entry.estado === "no_realizado"){
+          totalNo++; byArea[areaName].no++; byDay[doc.fecha].no++;
+          noRealizadas.push({
+            fecha: doc.fecha, turno: doc.turno, area: areaName,
+            actividad: (actById(actId) || {}).nombre || actId,
+            comentario: entry.comentario || "", responsable: doc.responsable || ""
+          });
+        }
+        else if (entry.estado === "no_aplica"){ totalNA++; byArea[areaName].na++; }
+        else { totalPend++; }
+      });
+    });
+
+    var denom = totalReal + totalNo;
+    var pct = denom ? Math.round((totalReal/denom)*100) : null;
+    document.getElementById("kpi-cumplimiento").textContent = pct === null ? "—" : pct + "%";
+    document.getElementById("kpi-no-realizadas").textContent = totalNo;
+    document.getElementById("kpi-turnos").textContent = docs.length;
+    document.getElementById("kpi-pendientes").textContent = totalPend;
+
+    var barsHtml = "";
+    Object.keys(byArea).sort().forEach(function(name){
+      var a = byArea[name];
+      var d = a.real + a.no;
+      var p = d ? Math.round((a.real/d)*100) : 0;
+      barsHtml += '<div class="bar-row"><div>' + esc(name) + '</div>' +
+        '<div class="bar-track"><div class="bar-fill" style="width:' + p + '%"></div></div>' +
+        '<div class="bar-pct">' + (d ? p + '%' : '—') + '</div></div>';
+    });
+    document.getElementById("bars-area").innerHTML = barsHtml || '<p class="empty-note">Sin datos en el período seleccionado.</p>';
+
+    renderTrend(byDay);
+
+    var tbody = document.getElementById("tabla-no-realizadas");
+    if (!noRealizadas.length){
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-note">Sin actividades no realizadas en el período.</td></tr>';
+    } else {
+      noRealizadas.sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
+      tbody.innerHTML = noRealizadas.map(function(r){
+        return '<tr><td class="mono">' + esc(r.fecha) + '</td><td>' + esc(r.turno) + '</td><td>' + esc(r.area) +
+          '</td><td>' + esc(r.actividad) + '</td><td>' + esc(r.comentario || "—") + '</td><td>' + esc(r.responsable || "—") + '</td></tr>';
+      }).join("");
+    }
+    state._lastNoRealizadas = noRealizadas;
+  }
+
+  function renderTrend(byDay){
+    var days = [];
+    var cursor = state.dashStart;
+    while (cursor <= state.dashEnd){ days.push(cursor); cursor = addDays(cursor, 1); }
+    var w = 640, h = 140, padL = 30, padB = 20, padT = 10, padR = 10;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var pts = days.map(function(d){
+      var a = byDay[d] || {real:0, no:0};
+      var denom = a.real + a.no;
+      return denom ? (a.real/denom)*100 : null;
+    });
+    var n = days.length;
+    var coords = pts.map(function(v, i){
+      var x = padL + (n <= 1 ? 0 : (i/(n-1))*innerW);
+      var y = v === null ? null : padT + innerH - (v/100)*innerH;
+      return {x:x, y:y};
+    });
+    var pathParts = [];
+    var drawing = false;
+    coords.forEach(function(c){
+      if (c.y === null){ drawing = false; return; }
+      pathParts.push((drawing ? "L" : "M") + c.x.toFixed(1) + " " + c.y.toFixed(1));
+      drawing = true;
+    });
+    var gridLines = [0,25,50,75,100].map(function(v){
+      var y = padT + innerH - (v/100)*innerH;
+      return '<line x1="' + padL + '" y1="' + y + '" x2="' + (w-padR) + '" y2="' + y + '" stroke="var(--border)" stroke-width="1"/>' +
+        '<text x="4" y="' + (y+4) + '" font-size="9" fill="var(--text-muted)" font-family="IBM Plex Mono, monospace">' + v + '</text>';
+    }).join("");
+    var dots = coords.map(function(c, i){
+      if (c.y === null) return "";
+      return '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="2.5" fill="var(--accent)"><title>' + esc(days[i]) + ": " + Math.round(pts[i]) + '%</title></circle>';
+    }).join("");
+    var svg = days.length ?
+      '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%; height:auto; max-width:680px;" role="img" aria-label="Tendencia de cumplimiento diario">' +
+      gridLines +
+      (pathParts.length ? '<path d="' + pathParts.join(" ") + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' : '') +
+      dots + '</svg>'
+      : '<p class="empty-note">Sin datos.</p>';
+    document.getElementById("trend-chart").innerHTML = svg;
+  }
+
+  document.getElementById("btn-export").addEventListener("click", function(){
+    exportCsv();
+  });
+  function exportCsv(){
+    var rows = [["Fecha","Turno","Área","Actividad","Estado","Comentario","Responsable"]];
+    state.dashDocs.forEach(function(doc){
+      var actEntries = doc.actividades || {};
+      Object.keys(actEntries).forEach(function(actId){
+        var entry = actEntries[actId];
+        var areaName = (areaById(entry.areaId) || {}).nombre || "Sin área";
+        rows.push([
+          doc.fecha, doc.turno, areaName,
+          (actById(actId) || {}).nombre || actId,
+          entry.estado || "sin_registrar",
+          entry.comentario || "",
+          doc.responsable || ""
+        ]);
+      });
+    });
+    var csv = rows.map(function(r){
+      return r.map(function(v){
+        v = String(v == null ? "" : v);
+        return /[",\n]/.test(v) ? '"' + v.replace(/"/g,'""') + '"' : v;
+      }).join(",");
+    }).join("\n");
+    if (!state.downloads){
+      showToast("Descargas no disponibles en esta vista");
+      return;
+    }
+    state.downloads.save({ filename: "bitacora_" + state.dashStart + "_" + state.dashEnd + ".csv", data: csv })
+      .then(function(){ showToast("Archivo exportado"); })
+      .catch(function(err){ if (err.code !== "declined") showToast("No se pudo exportar: " + err.code); });
+  }
+
+  // ---------- Catálogo ----------
+  function renderCatalogo(){
+    var areasHtml = state.areas.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(a){
+      return '<div class="catalog-row' + (a.activo === false ? ' inactive' : '') + '">' +
+        '<input type="text" value="' + esc(a.nombre) + '" data-area-field="nombre" data-id="' + esc(a.id) + '">' +
+        '<input type="number" value="' + (a.orden||0) + '" data-area-field="orden" data-id="' + esc(a.id) + '" title="Orden">' +
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (a.activo!==false?'checked':'') + ' data-area-field="activo" data-id="' + esc(a.id) + '"> Activa</label>' +
+        '<span></span></div>';
+    }).join("");
+    document.getElementById("catalog-areas").innerHTML = areasHtml || '<p class="empty-note">Sin áreas.</p>';
+
+    var actsHtml = state.actividades.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(a){
+      var area = areaById(a.areaId);
+      return '<div class="catalog-row' + (a.activo === false ? ' inactive' : '') + '">' +
+        '<input type="text" value="' + esc(a.nombre) + '" data-act-field="nombre" data-id="' + esc(a.id) + '" title="' + esc(area ? area.nombre : "") + '">' +
+        '<input type="number" value="' + (a.orden||0) + '" data-act-field="orden" data-id="' + esc(a.id) + '" title="Orden">' +
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (a.activo!==false?'checked':'') + ' data-act-field="activo" data-id="' + esc(a.id) + '"> Activa</label>' +
+        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span></div>';
+    }).join("");
+    document.getElementById("catalog-actividades").innerHTML = actsHtml || '<p class="empty-note">Sin actividades.</p>';
+
+    var sel = document.getElementById("new-act-area");
+    sel.innerHTML = state.areas.filter(function(a){return a.activo!==false;}).map(function(a){
+      return '<option value="' + esc(a.id) + '">' + esc(a.nombre) + '</option>';
+    }).join("");
+
+    document.querySelectorAll("[data-area-field]").forEach(function(el){
+      el.addEventListener("change", function(){
+        var id = el.getAttribute("data-id"), field = el.getAttribute("data-area-field");
+        var val = el.type === "checkbox" ? el.checked : (el.type === "number" ? Number(el.value) : el.value);
+        saveCatalogField("areas", id, field, val, state.areas);
+      });
+    });
+    document.querySelectorAll("[data-act-field]").forEach(function(el){
+      el.addEventListener("change", function(){
+        var id = el.getAttribute("data-id"), field = el.getAttribute("data-act-field");
+        var val = el.type === "checkbox" ? el.checked : (el.type === "number" ? Number(el.value) : el.value);
+        saveCatalogField("actividades", id, field, val, state.actividades);
+      });
+    });
+  }
+
+  function saveCatalogField(coll, id, field, val, localArr){
+    var item = localArr.filter(function(x){ return x.id === id; })[0];
+    if (item) item[field] = val;
+    if (!state.db){ renderCatalogo(); renderRegistro(); showToast("Cambio guardado localmente (sin conexión)"); return; }
+    var patch = {}; patch[field] = val;
+    state.db.collection(coll).doc(id).update(patch)
+      .then(function(){ showToast("Catálogo actualizado"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  }
+
+  document.getElementById("btn-add-area").addEventListener("click", function(){
+    var input = document.getElementById("new-area-nombre");
+    var nombre = input.value.trim();
+    if (!nombre) return;
+    var orden = state.areas.length ? Math.max.apply(null, state.areas.map(function(a){return a.orden||0;})) + 1 : 1;
+    var data = { nombre: nombre, orden: orden, activo: true };
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("areas").add(data).then(function(){ input.value = ""; showToast("Área agregada"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  });
+
+  document.getElementById("btn-add-actividad").addEventListener("click", function(){
+    var nombreInput = document.getElementById("new-act-nombre");
+    var areaId = document.getElementById("new-act-area").value;
+    var nombre = nombreInput.value.trim();
+    if (!nombre || !areaId) return;
+    var orden = state.actividades.length ? Math.max.apply(null, state.actividades.map(function(a){return a.orden||0;})) + 1 : 1;
+    var data = { areaId: areaId, nombre: nombre, descripcion: "", orden: orden, activo: true };
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("actividades").add(data).then(function(){ nombreInput.value = ""; showToast("Actividad agregada"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  });
+
+  // ---------- Boot ----------
+  renderRegistro();
+
+  function setStatus(online){
+    document.getElementById("status-dot").classList.toggle("online", online);
+    document.getElementById("status-text").textContent = online ? "En línea" : "Sin conexión";
+    document.getElementById("banner-offline").hidden = online;
+  }
+  setStatus(false);
+
+  if (window.claude && typeof window.claude.use === "function"){
+    window.claude.use("db").then(function(db){
+      if (!db) { setStatus(false); return; }
+      state.db = db;
+      setStatus(true);
+
+      unsubAreas = db.collection("areas").onSnapshot(function(snap){
+        if (!snap.empty){
+          state.areas = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        }
+        renderRegistro();
+        if (state.view === "catalogo") renderCatalogo();
+        if (state.view === "dashboard") renderDashboard();
+      }, function(err){ showToast("Error catálogo áreas: " + err.code); });
+
+      unsubAct = db.collection("actividades").onSnapshot(function(snap){
+        if (!snap.empty){
+          state.actividades = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        }
+        renderRegistro();
+        if (state.view === "catalogo") renderCatalogo();
+        if (state.view === "dashboard") renderDashboard();
+      }, function(err){ showToast("Error catálogo actividades: " + err.code); });
+
+      subscribeShift();
+      setRange(14);
+    });
+    window.claude.use("downloads").then(function(d){ state.downloads = d; });
+  }
+})();
+</script>
