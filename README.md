@@ -19,15 +19,26 @@ desde una sesión de Claude Code (no basta con hacer push a este repo).
   *Realizado / No realizado / No aplica*; si es "No realizado" pide un comentario
   obligatorio con el motivo. Se guarda automáticamente (sin botón "Guardar"), en
   tiempo real y compartido con quien más esté mirando el mismo turno.
-- **Dashboard**: % de cumplimiento del período, cumplimiento por área, tendencia
-  diaria, y una tabla con todas las actividades "no realizadas" y su motivo — la
-  lista de pendientes de gestión. Exporta a CSV.
-- **Catálogo**: pantalla para agregar/editar áreas y actividades, y activar o
-  desactivar sin perder el historial ya guardado.
+- **Novedades**: registro independiente del operacional, para fallas de equipos
+  (Mecánico / Eléctrico / Instrumentación). Se reporta área, equipo, tipo de falla
+  (catálogo editable por disciplina) y comentario. Queda "Pendiente" y sigue
+  apareciendo turno tras turno hasta marcarla "OK" — no se resetea cada día. Se
+  puede reabrir o eliminar si se cargó por error. El menú muestra un contador de
+  novedades pendientes.
+- **Dashboard**: % de cumplimiento del período, listado de todos los turnos
+  registrados (con acceso directo a abrir cualquiera), cumplimiento por área,
+  tendencia diaria, y una tabla con todas las actividades "no realizadas" y su
+  motivo — la lista de pendientes de gestión. Exporta a CSV.
+- **Catálogo**: pantalla para agregar/editar áreas, actividades y tipos de falla,
+  y activar o desactivar sin perder el historial ya guardado.
+- **Corrección de errores**: en Registro se puede limpiar una actividad mal marcada
+  o eliminar el registro completo de un turno; en Novedades se puede reabrir o
+  eliminar una novedad. Todas las eliminaciones piden confirmar dos veces.
 
-El catálogo de áreas/actividades viene precargado con ejemplos (Planta Convencional,
-Chancado, Flotación) — son solo ilustrativos, se editan directamente en la pestaña
-Catálogo con las actividades reales de la operación.
+El catálogo de áreas ya refleja la operación real (Molienda Convencional, Molienda
+Unitario 1/2, Molienda SAG, Flotación Rougher/Scavenger, Columnas, Espesador
+Concentrado) y se ha ido cargando con las actividades reales de control desde la
+pestaña Catálogo.
 
 ## Datos y acceso
 
@@ -40,7 +51,8 @@ Catálogo con las actividades reales de la operación.
 - Límite técnico: 5000 documentos en total para esta app. Por eso cada turno
   (fecha + turno) se guarda como **un solo documento** con todas sus actividades
   adentro, en vez de un documento por actividad — a este ritmo alcanza para años de
-  registro.
+  registro. Las novedades sí son un documento por evento reportado (no por turno),
+  ya que se reportan con mucha menor frecuencia que las actividades diarias.
 
 ## Ideas para seguir agregando (no implementado aún)
 
