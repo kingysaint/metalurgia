@@ -201,7 +201,17 @@
     display:inline-block; padding:3px 9px; border-radius:999px; font-size:11.5px; font-weight:600;
   }
   .estado-tag.no_realizado{background:var(--bad-bg); color:var(--bad);}
+  .estado-tag.pendiente{background:var(--bad-bg); color:var(--bad);}
+  .estado-tag.ok{background:var(--good-bg); color:var(--good);}
   .empty-note{color:var(--text-muted); font-size:13px; padding:10px 2px;}
+  .disc-tag{display:inline-block; padding:3px 9px; border-radius:999px; font-size:11px; font-weight:600; white-space:nowrap;}
+  .disc-tag.mecanico{color:var(--accent); background:color-mix(in srgb, var(--accent) 18%, transparent);}
+  .disc-tag.electrico{color:var(--warn); background:var(--warn-bg);}
+  .disc-tag.instrumentacion{color:var(--good); background:var(--good-bg);}
+  .nav-badge{
+    display:inline-block; min-width:16px; padding:1px 5px; border-radius:999px;
+    background:var(--bad); color:#fff; font-size:10.5px; font-weight:700; margin-left:6px;
+  }
 
   .btn{
     border:1px solid var(--border); background:var(--surface-2); color:var(--text);
@@ -210,12 +220,15 @@
   .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
   .btn.danger{background:var(--surface-2); border-color:var(--bad); color:var(--bad);}
   .btn.danger.confirming{background:var(--bad); border-color:var(--bad); color:#fff;}
+  .btn.success{background:var(--surface-2); border-color:var(--good); color:var(--good);}
+  .btn.success:hover{background:var(--good-bg);}
   .btn:disabled{opacity:.5; cursor:not-allowed;}
   .btn-small{
     border:none; background:transparent; color:var(--text-muted); font-size:12px; font-weight:600;
     cursor:pointer; padding:4px 6px; text-decoration:underline; text-underline-offset:2px;
   }
   .btn-small:hover{color:var(--bad);}
+  .btn-small.confirming{color:var(--bad); font-weight:700;}
 
   .catalog-section{margin-bottom:26px;}
   .catalog-row{
@@ -254,6 +267,7 @@
     </div>
     <nav class="tabs" aria-label="Secciones">
       <button class="tab-btn" data-view="registro" aria-current="true" id="nav-registro">Registro</button>
+      <button class="tab-btn" data-view="novedades" id="nav-novedades">Novedades<span class="nav-badge" id="novedades-badge" hidden>0</span></button>
       <button class="tab-btn" data-view="dashboard" id="nav-dashboard">Dashboard</button>
       <button class="tab-btn" data-view="catalogo" id="nav-catalogo">Catálogo</button>
     </nav>
@@ -288,6 +302,51 @@
       <button type="button" class="btn danger" id="btn-delete-shift" hidden>Eliminar registro del turno</button>
     </div>
     <div id="registro-list"></div>
+  </section>
+
+  <section id="view-novedades" class="view" hidden>
+    <div class="toolbar">
+      <div class="field" style="min-width:200px; flex:1;">
+        <label for="nov-responsable">Responsable</label>
+        <input type="text" id="nov-responsable" placeholder="Nombre y cargo">
+      </div>
+      <div class="field">
+        <label>Mostrar</label>
+        <div class="seg" role="group" aria-label="Filtro de novedades">
+          <button type="button" data-nov-filter="pendientes" aria-pressed="true">Pendientes</button>
+          <button type="button" data-nov-filter="todas" aria-pressed="false">Todas</button>
+        </div>
+      </div>
+      <div class="spacer"></div>
+      <div class="progress-chip" id="novedades-chip">0 pendientes</div>
+    </div>
+
+    <div class="panel">
+      <h2>Reportar novedad</h2>
+      <div class="add-form" style="margin-top:0;">
+        <div class="field"><label for="nov-fecha">Fecha</label><input type="date" id="nov-fecha"></div>
+        <div class="field"><label>Turno</label>
+          <div class="seg" role="group" aria-label="Turno de la novedad">
+            <button type="button" data-nov-turno="A" aria-pressed="true">Turno A</button>
+            <button type="button" data-nov-turno="C" aria-pressed="false">Turno C</button>
+          </div>
+        </div>
+        <div class="field"><label for="nov-area">Área</label><select id="nov-area"></select></div>
+        <div class="field"><label for="nov-equipo">Equipo</label><input type="text" id="nov-equipo" placeholder="Ej: Molino de Bolas 1"></div>
+        <div class="field"><label>Disciplina</label>
+          <div class="seg" role="group" aria-label="Disciplina">
+            <button type="button" data-nov-disciplina="mecanico" aria-pressed="true">Mecánico</button>
+            <button type="button" data-nov-disciplina="electrico" aria-pressed="false">Eléctrico</button>
+            <button type="button" data-nov-disciplina="instrumentacion" aria-pressed="false">Instrumentación</button>
+          </div>
+        </div>
+        <div class="field"><label for="nov-tipo-falla">Tipo de falla</label><select id="nov-tipo-falla"></select></div>
+        <div class="field" style="min-width:240px; flex:2;"><label for="nov-comentario">Comentario</label><textarea id="nov-comentario" placeholder="Describe la novedad…"></textarea></div>
+        <button class="btn primary" id="btn-add-novedad">Reportar novedad</button>
+      </div>
+    </div>
+
+    <div id="novedades-list"></div>
   </section>
 
   <section id="view-dashboard" class="view" hidden>
@@ -378,6 +437,23 @@
         <button class="btn" id="btn-add-actividad">Agregar actividad</button>
       </div>
     </div>
+
+    <div class="catalog-section">
+      <h2 style="font-size:15px; margin-bottom:10px;">Tipos de falla (Novedades)</h2>
+      <p class="note" style="margin-bottom:10px;">Define los tipos de falla que aparecen al reportar una novedad, según disciplina (Mecánico, Eléctrico, Instrumentación).</p>
+      <div id="catalog-tipos-falla"></div>
+      <div class="add-form">
+        <div class="field"><label for="new-falla-disciplina">Disciplina</label>
+          <select id="new-falla-disciplina">
+            <option value="mecanico">Mecánico</option>
+            <option value="electrico">Eléctrico</option>
+            <option value="instrumentacion">Instrumentación</option>
+          </select>
+        </div>
+        <div class="field"><label for="new-falla-nombre">Nuevo tipo de falla</label><input type="text" id="new-falla-nombre" placeholder="Ej: Sistema de lubricación"></div>
+        <button class="btn" id="btn-add-falla">Agregar tipo de falla</button>
+      </div>
+    </div>
   </section>
 
 </main>
@@ -401,18 +477,49 @@
   var DEFAULT_ACTIVIDADES = [
     {id:"act-carguio-acero", areaId:"area-molienda-convencional", nombre:"Carguío de acero (bolas) en molienda convencional", descripcion:"Verificar carguío según programa de molienda", orden:1}
   ];
+  var DEFAULT_TIPOS_FALLA = [
+    {id:"falla-mec-ducto-alimentacion", disciplina:"mecanico", nombre:"Ducto de alimentación", orden:1},
+    {id:"falla-mec-cilindro", disciplina:"mecanico", nombre:"Cilindro", orden:2},
+    {id:"falla-mec-lubricacion", disciplina:"mecanico", nombre:"Sistema de lubricación", orden:3},
+    {id:"falla-mec-motor", disciplina:"mecanico", nombre:"Motor", orden:4},
+    {id:"falla-mec-reductor", disciplina:"mecanico", nombre:"Reductor / caja reductora", orden:5},
+    {id:"falla-mec-correa", disciplina:"mecanico", nombre:"Correa transportadora", orden:6},
+    {id:"falla-mec-rodamientos", disciplina:"mecanico", nombre:"Rodamientos", orden:7},
+    {id:"falla-mec-hidraulico", disciplina:"mecanico", nombre:"Sistema hidráulico", orden:8},
+    {id:"falla-mec-estructura", disciplina:"mecanico", nombre:"Estructura / carcasa", orden:9},
+    {id:"falla-mec-otro", disciplina:"mecanico", nombre:"Otro", orden:10},
+    {id:"falla-elec-motor", disciplina:"electrico", nombre:"Motor eléctrico", orden:1},
+    {id:"falla-elec-tablero", disciplina:"electrico", nombre:"Tablero eléctrico", orden:2},
+    {id:"falla-elec-cableado", disciplina:"electrico", nombre:"Cableado / conexiones", orden:3},
+    {id:"falla-elec-protecciones", disciplina:"electrico", nombre:"Protecciones / breaker", orden:4},
+    {id:"falla-elec-variador", disciplina:"electrico", nombre:"Variador de frecuencia", orden:5},
+    {id:"falla-elec-otro", disciplina:"electrico", nombre:"Otro", orden:6},
+    {id:"falla-inst-sensor-nivel", disciplina:"instrumentacion", nombre:"Sensor de nivel", orden:1},
+    {id:"falla-inst-sensor-flujo", disciplina:"instrumentacion", nombre:"Sensor de flujo", orden:2},
+    {id:"falla-inst-transmisor-presion", disciplina:"instrumentacion", nombre:"Transmisor de presión", orden:3},
+    {id:"falla-inst-plc", disciplina:"instrumentacion", nombre:"PLC / control", orden:4},
+    {id:"falla-inst-valvula", disciplina:"instrumentacion", nombre:"Válvula de control", orden:5},
+    {id:"falla-inst-calibracion", disciplina:"instrumentacion", nombre:"Calibración", orden:6},
+    {id:"falla-inst-otro", disciplina:"instrumentacion", nombre:"Otro", orden:7}
+  ];
 
   var ESTADOS = [
     {key:"realizado", label:"Realizado"},
     {key:"no_realizado", label:"No realizado"},
     {key:"no_aplica", label:"No aplica"}
   ];
+  var DISCIPLINAS = {mecanico:"Mecánico", electrico:"Eléctrico", instrumentacion:"Instrumentación"};
 
   var state = {
     db:null,
     downloads:null,
     areas: DEFAULT_AREAS.slice(),
     actividades: DEFAULT_ACTIVIDADES.slice(),
+    tiposFalla: DEFAULT_TIPOS_FALLA.slice(),
+    novedades: [],
+    novFilter: "pendientes",
+    novTurno: "A",
+    novDisciplina: "mecanico",
     fecha: todayStr(),
     turno: "A",
     shiftDoc: null,
@@ -427,6 +534,8 @@
   var unsubRange = null;
   var unsubAreas = null;
   var unsubAct = null;
+  var unsubTiposFalla = null;
+  var unsubNovedades = null;
 
   function todayStr(d){
     d = d || new Date();
@@ -457,6 +566,21 @@
   function activeActividades(){ return state.actividades.filter(function(a){ return a.activo !== false; }); }
   function areaById(id){ return state.areas.filter(function(a){ return a.id === id; })[0]; }
   function actById(id){ return state.actividades.filter(function(a){ return a.id === id; })[0]; }
+  function tipoFallaById(id){ return state.tiposFalla.filter(function(t){ return t.id === id; })[0]; }
+  function disciplinaLabel(key){ return DISCIPLINAS[key] || key; }
+  function armConfirm(btn, label, onConfirm){
+    if (!btn.classList.contains("confirming")){
+      btn.dataset.orig = btn.textContent;
+      btn.classList.add("confirming");
+      btn.textContent = label;
+      clearTimeout(btn._t);
+      btn._t = setTimeout(function(){ btn.classList.remove("confirming"); btn.textContent = btn.dataset.orig; }, 4000);
+      return;
+    }
+    clearTimeout(btn._t);
+    btn.classList.remove("confirming");
+    onConfirm();
+  }
 
   // ---------- Views ----------
   document.querySelectorAll(".tab-btn").forEach(function(btn){
@@ -464,10 +588,11 @@
   });
   function switchView(view){
     state.view = view;
-    ["registro","dashboard","catalogo"].forEach(function(v){
+    ["registro","novedades","dashboard","catalogo"].forEach(function(v){
       document.getElementById("view-"+v).hidden = (v !== view);
       document.getElementById("nav-"+v).setAttribute("aria-current", v === view ? "true" : "false");
     });
+    if (view === "novedades") renderNovedades();
     if (view === "dashboard") renderDashboard();
     if (view === "catalogo") renderCatalogo();
   }
@@ -634,6 +759,205 @@
       renderRegistro();
     }, function(err){
       showToast("Error de sincronización: " + err.code);
+    });
+  }
+
+  // ---------- Novedades ----------
+  var novFechaInput = document.getElementById("nov-fecha");
+  var novResponsableInput = document.getElementById("nov-responsable");
+  novFechaInput.value = todayStr();
+
+  document.querySelectorAll("[data-nov-turno]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.novTurno = btn.getAttribute("data-nov-turno");
+      document.querySelectorAll("[data-nov-turno]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+    });
+  });
+  document.querySelectorAll("[data-nov-disciplina]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.novDisciplina = btn.getAttribute("data-nov-disciplina");
+      document.querySelectorAll("[data-nov-disciplina]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      populateNovTipoFallaSelect();
+    });
+  });
+  document.querySelectorAll("[data-nov-filter]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.novFilter = btn.getAttribute("data-nov-filter");
+      document.querySelectorAll("[data-nov-filter]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      renderNovedadesList();
+    });
+  });
+
+  function populateNovAreaSelect(){
+    var sel = document.getElementById("nov-area");
+    var current = sel.value;
+    var opts = activeAreas();
+    sel.innerHTML = opts.map(function(a){ return '<option value="' + esc(a.id) + '">' + esc(a.nombre) + '</option>'; }).join("");
+    if (opts.some(function(a){ return a.id === current; })) sel.value = current;
+  }
+  function populateNovTipoFallaSelect(){
+    var sel = document.getElementById("nov-tipo-falla");
+    var opts = state.tiposFalla.filter(function(t){ return t.activo !== false && t.disciplina === state.novDisciplina; })
+      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+    sel.innerHTML = opts.length ? opts.map(function(t){ return '<option value="' + esc(t.id) + '">' + esc(t.nombre) + '</option>'; }).join("")
+      : '<option value="">Sin tipos definidos para esta disciplina</option>';
+  }
+
+  function daysSince(dateStr){
+    var parts = dateStr.split("-").map(Number);
+    var then = new Date(parts[0], parts[1]-1, parts[2]);
+    var now = new Date(); now.setHours(0,0,0,0);
+    return Math.round((now - then) / 86400000);
+  }
+
+  document.getElementById("btn-add-novedad").addEventListener("click", function(){
+    var equipoInput = document.getElementById("nov-equipo");
+    var comentarioInput = document.getElementById("nov-comentario");
+    var areaSel = document.getElementById("nov-area");
+    var tipoSel = document.getElementById("nov-tipo-falla");
+    var equipo = equipoInput.value.trim();
+    var tipo = tipoFallaById(tipoSel.value);
+    if (!equipo){ showToast("Falta indicar el equipo"); return; }
+    if (!tipo){ showToast("Selecciona un tipo de falla"); return; }
+    var area = areaById(areaSel.value);
+    var data = {
+      fecha: novFechaInput.value || todayStr(),
+      turno: state.novTurno,
+      areaId: areaSel.value || "",
+      areaNombre: area ? area.nombre : "",
+      equipo: equipo,
+      disciplina: state.novDisciplina,
+      tipoFallaId: tipo.id,
+      tipoFallaNombre: tipo.nombre,
+      comentario: comentarioInput.value.trim(),
+      estado: "pendiente",
+      reportadoPor: novResponsableInput.value.trim(),
+      resueltoPor: "",
+      resolvedAt: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("novedades").add(data).then(function(){
+      equipoInput.value = "";
+      comentarioInput.value = "";
+      showToast("Novedad reportada");
+    }).catch(function(err){ showToast("Error: " + err.code); });
+  });
+
+  function resolveNovedad(id){
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("novedades").doc(id).update({
+      estado: "ok", resolvedAt: new Date().toISOString(),
+      resueltoPor: novResponsableInput.value.trim(), updatedAt: new Date().toISOString()
+    }).then(function(){ showToast("Novedad marcada OK"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  }
+  function reopenNovedad(id){
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("novedades").doc(id).update({
+      estado: "pendiente", resolvedAt: null, resueltoPor: "", updatedAt: new Date().toISOString()
+    }).then(function(){ showToast("Novedad reabierta"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  }
+  function deleteNovedad(id){
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("novedades").doc(id).delete()
+      .then(function(){ showToast("Novedad eliminada"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  }
+
+  function renderNovedadCard(n){
+    var estadoTag = n.estado === "ok" ? '<span class="estado-tag ok">Resuelta</span>' :
+      '<span class="estado-tag pendiente">Pendiente' + (n.fecha ? " · " + daysSince(n.fecha) + " día" + (daysSince(n.fecha) === 1 ? "" : "s") : "") + '</span>';
+    var discTag = '<span class="disc-tag ' + esc(n.disciplina) + '">' + esc(disciplinaLabel(n.disciplina)) + '</span>';
+    var actions = n.estado === "ok"
+      ? '<button type="button" class="btn-small" data-nov-reopen data-id="' + esc(n.id) + '">Reabrir</button>' +
+        '<button type="button" class="btn-small" data-nov-delete data-id="' + esc(n.id) + '">Eliminar</button>'
+      : '<button type="button" class="btn success" style="padding:6px 12px; font-size:12.5px;" data-nov-resolve data-id="' + esc(n.id) + '">Marcar OK</button>' +
+        '<button type="button" class="btn-small" data-nov-delete data-id="' + esc(n.id) + '">Eliminar</button>';
+    var metaLine = "Reportada " + esc(n.fecha) + " turno " + esc(n.turno) + (n.reportadoPor ? " por " + esc(n.reportadoPor) : "") +
+      (n.estado === "ok" && n.resolvedAt ? " · Resuelta " + esc(new Date(n.resolvedAt).toLocaleDateString("es-CL")) + (n.resueltoPor ? " por " + esc(n.resueltoPor) : "") : "");
+    return '<div class="activity-card">' +
+      '<div class="activity-top"><div><div class="activity-name">' + esc(n.equipo) +
+      (n.areaNombre ? ' <span style="font-weight:400; color:var(--text-muted);">— ' + esc(n.areaNombre) + '</span>' : '') + '</div>' +
+      '<div class="activity-desc">' + esc(n.tipoFallaNombre) + '</div></div>' +
+      '<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' + discTag + estadoTag + '</div></div>' +
+      (n.comentario ? '<div class="row-meta" style="font-family:inherit; color:var(--text); margin-top:10px;">' + esc(n.comentario) + '</div>' : '') +
+      '<div class="row-meta">' + metaLine + '</div>' +
+      '<div style="display:flex; gap:14px; margin-top:10px; align-items:center;">' + actions + '</div></div>';
+  }
+
+  function renderNovedadesList(){
+    var listEl = document.getElementById("novedades-list");
+    var items = state.novedades.slice();
+    if (state.novFilter === "pendientes") items = items.filter(function(n){ return n.estado !== "ok"; });
+    items.sort(function(a,b){
+      var ka = (a.fecha||"") + (a.turno||""), kb = (b.fecha||"") + (b.turno||"");
+      return ka < kb ? -1 : (ka > kb ? 1 : 0);
+    });
+    if (!items.length){
+      listEl.innerHTML = '<p class="empty-note">' + (state.novFilter === "pendientes" ? "No hay novedades pendientes." : "No hay novedades registradas.") + '</p>';
+    } else {
+      listEl.innerHTML = items.map(renderNovedadCard).join("");
+      listEl.querySelectorAll("[data-nov-resolve]").forEach(function(btn){
+        btn.addEventListener("click", function(){ resolveNovedad(btn.getAttribute("data-id")); });
+      });
+      listEl.querySelectorAll("[data-nov-reopen]").forEach(function(btn){
+        btn.addEventListener("click", function(){ reopenNovedad(btn.getAttribute("data-id")); });
+      });
+      listEl.querySelectorAll("[data-nov-delete]").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          armConfirm(btn, "¿Confirmar?", function(){ deleteNovedad(btn.getAttribute("data-id")); });
+        });
+      });
+    }
+    var pendCount = state.novedades.filter(function(n){ return n.estado !== "ok"; }).length;
+    document.getElementById("novedades-chip").textContent = pendCount + " pendiente" + (pendCount === 1 ? "" : "s");
+    var badge = document.getElementById("novedades-badge");
+    badge.hidden = pendCount === 0;
+    badge.textContent = pendCount > 99 ? "99+" : pendCount;
+  }
+
+  function renderNovedades(){
+    populateNovAreaSelect();
+    populateNovTipoFallaSelect();
+    renderNovedadesList();
+  }
+
+  document.getElementById("btn-add-falla").addEventListener("click", function(){
+    var nombreInput = document.getElementById("new-falla-nombre");
+    var disciplina = document.getElementById("new-falla-disciplina").value;
+    var nombre = nombreInput.value.trim();
+    if (!nombre) return;
+    var orden = state.tiposFalla.length ? Math.max.apply(null, state.tiposFalla.map(function(a){ return a.orden||0; })) + 1 : 1;
+    var data = { disciplina: disciplina, nombre: nombre, orden: orden, activo: true };
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("tipos_falla").add(data).then(function(){ nombreInput.value = ""; showToast("Tipo de falla agregado"); })
+      .catch(function(err){ showToast("Error: " + err.code); });
+  });
+
+  function renderCatalogoTiposFalla(){
+    var html = state.tiposFalla.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(t){
+      return '<div class="catalog-row' + (t.activo === false ? ' inactive' : '') + '">' +
+        '<input type="text" value="' + esc(t.nombre) + '" data-falla-field="nombre" data-id="' + esc(t.id) + '">' +
+        '<input type="number" value="' + (t.orden||0) + '" data-falla-field="orden" data-id="' + esc(t.id) + '" title="Orden">' +
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (t.activo!==false?'checked':'') + ' data-falla-field="activo" data-id="' + esc(t.id) + '"> Activo</label>' +
+        '<span class="note" style="font-size:11px;">' + esc(disciplinaLabel(t.disciplina)) + '</span></div>';
+    }).join("");
+    document.getElementById("catalog-tipos-falla").innerHTML = html || '<p class="empty-note">Sin tipos de falla.</p>';
+    document.querySelectorAll("[data-falla-field]").forEach(function(el){
+      el.addEventListener("change", function(){
+        var id = el.getAttribute("data-id"), field = el.getAttribute("data-falla-field");
+        var val = el.type === "checkbox" ? el.checked : (el.type === "number" ? Number(el.value) : el.value);
+        saveCatalogField("tipos_falla", id, field, val, state.tiposFalla);
+      });
     });
   }
 
@@ -887,6 +1211,8 @@
         saveCatalogField("actividades", id, field, val, state.actividades);
       });
     });
+
+    renderCatalogoTiposFalla();
   }
 
   function saveCatalogField(coll, id, field, val, localArr){
@@ -924,6 +1250,7 @@
 
   // ---------- Boot ----------
   renderRegistro();
+  renderNovedades();
 
   function setStatus(online){
     document.getElementById("status-dot").classList.toggle("online", online);
@@ -955,6 +1282,23 @@
         if (state.view === "catalogo") renderCatalogo();
         if (state.view === "dashboard") renderDashboard();
       }, function(err){ showToast("Error catálogo actividades: " + err.code); });
+
+      unsubTiposFalla = db.collection("tipos_falla").onSnapshot(function(snap){
+        if (!snap.empty){
+          state.tiposFalla = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        }
+        renderNovedades();
+        if (state.view === "catalogo") renderCatalogo();
+      }, function(err){ showToast("Error catálogo tipos de falla: " + err.code); });
+
+      unsubNovedades = db.collection("novedades").limit(1000).onSnapshot(function(snap){
+        state.novedades = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        renderNovedadesList();
+        var pendCount = state.novedades.filter(function(n){ return n.estado !== "ok"; }).length;
+        var badge = document.getElementById("novedades-badge");
+        badge.hidden = pendCount === 0;
+        badge.textContent = pendCount > 99 ? "99+" : pendCount;
+      }, function(err){ showToast("Error novedades: " + err.code); });
 
       subscribeShift();
       setRange(14);
