@@ -207,7 +207,14 @@
     padding:9px 15px; border-radius:7px; font-size:13.5px; font-weight:600; cursor:pointer;
   }
   .btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-contrast);}
+  .btn.danger{background:var(--surface-2); border-color:var(--bad); color:var(--bad);}
+  .btn.danger.confirming{background:var(--bad); border-color:var(--bad); color:#fff;}
   .btn:disabled{opacity:.5; cursor:not-allowed;}
+  .btn-small{
+    border:none; background:transparent; color:var(--text-muted); font-size:12px; font-weight:600;
+    cursor:pointer; padding:4px 6px; text-decoration:underline; text-underline-offset:2px;
+  }
+  .btn-small:hover{color:var(--bad);}
 
   .catalog-section{margin-bottom:26px;}
   .catalog-row{
@@ -277,6 +284,7 @@
       </div>
       <div class="spacer"></div>
       <div class="progress-chip" id="progress-chip">0 / 0 registradas</div>
+      <button type="button" class="btn danger" id="btn-delete-shift" hidden>Eliminar registro del turno</button>
     </div>
     <div id="registro-list"></div>
   </section>
@@ -324,7 +332,7 @@
       <h2>Actividades no realizadas en el período</h2>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Fecha</th><th>Turno</th><th>Área</th><th>Actividad</th><th>Comentario</th><th>Responsable</th></tr></thead>
+          <thead><tr><th>Fecha</th><th>Turno</th><th>Área</th><th>Actividad</th><th>Comentario</th><th>Responsable</th><th></th></tr></thead>
           <tbody id="tabla-no-realizadas"></tbody>
         </table>
       </div>
@@ -333,9 +341,9 @@
 
   <section id="view-catalogo" class="view" hidden>
     <p class="note" style="margin-bottom:18px;">
-      Este catálogo define qué actividades aparecen en el Registro diario. Las áreas y actividades vienen precargadas
-      como ejemplo — ajústalas a las actividades reales de tu operación. Desactivar una actividad la oculta del
-      registro sin borrar el historial ya guardado.
+      Este catálogo define qué actividades aparecen en el Registro diario. Las áreas ya están cargadas con tus
+      plantas reales — agrega aquí las actividades de control de cada una. Desactivar un área o actividad la oculta
+      del registro sin borrar el historial ya guardado.
     </p>
 
     <div class="catalog-section">
@@ -369,18 +377,17 @@
   "use strict";
 
   var DEFAULT_AREAS = [
-    {id:"area-planta-convencional", nombre:"Planta Convencional / Molienda", orden:1},
-    {id:"area-chancado", nombre:"Chancado", orden:2},
-    {id:"area-flotacion", nombre:"Flotación", orden:3}
+    {id:"area-molienda-convencional", nombre:"Molienda Convencional", orden:1},
+    {id:"area-molienda-unitario-1", nombre:"Molienda Unitario 1", orden:2},
+    {id:"area-molienda-unitario-2", nombre:"Molienda Unitario 2", orden:3},
+    {id:"area-molienda-sag", nombre:"Molienda SAG", orden:4},
+    {id:"area-flotacion-rougher", nombre:"Flotación Rougher", orden:5},
+    {id:"area-flotacion-scavenger", nombre:"Flotación Scavenger", orden:6},
+    {id:"area-columnas", nombre:"Columnas", orden:7},
+    {id:"area-espesador-concentrado", nombre:"Espesador Concentrado", orden:8}
   ];
   var DEFAULT_ACTIVIDADES = [
-    {id:"act-carguio-acero", areaId:"area-planta-convencional", nombre:"Carguío de acero (bolas) en molienda convencional", descripcion:"Verificar carguío según programa de molienda", orden:1},
-    {id:"act-flujo-agua", areaId:"area-planta-convencional", nombre:"Verificación de flujo de agua de proceso", descripcion:"", orden:2},
-    {id:"act-amperaje-motores", areaId:"area-planta-convencional", nombre:"Control de amperaje de motores de molino", descripcion:"", orden:3},
-    {id:"act-inspeccion-correas", areaId:"area-chancado", nombre:"Inspección visual de correas transportadoras", descripcion:"", orden:4},
-    {id:"act-control-granulometria", areaId:"area-chancado", nombre:"Control granulométrico de mineral chancado", descripcion:"", orden:5},
-    {id:"act-nivel-pulpa-celdas", areaId:"area-flotacion", nombre:"Control de nivel de pulpa en celdas", descripcion:"", orden:6},
-    {id:"act-muestreo-leyes", areaId:"area-flotacion", nombre:"Muestreo de leyes de cobre en concentrado", descripcion:"", orden:7}
+    {id:"act-carguio-acero", areaId:"area-molienda-convencional", nombre:"Carguío de acero (bolas) en molienda convencional", descripcion:"Verificar carguío según programa de molienda", orden:1}
   ];
 
   var ESTADOS = [
@@ -474,6 +481,25 @@
     saveShiftPatch({ responsable: inputResponsable.value });
   });
 
+  var deleteShiftBtn = document.getElementById("btn-delete-shift");
+  deleteShiftBtn.addEventListener("click", function(){
+    if (!deleteShiftBtn.classList.contains("confirming")){
+      deleteShiftBtn.classList.add("confirming");
+      deleteShiftBtn.textContent = "¿Confirmar eliminar todo el turno?";
+      clearTimeout(deleteShiftBtn._t);
+      deleteShiftBtn._t = setTimeout(function(){
+        deleteShiftBtn.classList.remove("confirming");
+        deleteShiftBtn.textContent = "Eliminar registro del turno";
+      }, 4000);
+      return;
+    }
+    clearTimeout(deleteShiftBtn._t);
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("registros").doc(shiftDocId(state.fecha, state.turno)).delete()
+      .then(function(){ showToast("Registro del turno eliminado"); })
+      .catch(function(err){ showToast("Error al eliminar: " + err.code); });
+  });
+
   function currentActividadData(actId){
     var d = state.shiftDoc && state.shiftDoc.actividades && state.shiftDoc.actividades[actId];
     return d || {};
@@ -503,6 +529,10 @@
     if (!areas.length) html = '<p class="empty-note">No hay áreas activas. Ve a Catálogo para agregar actividades.</p>';
     list.innerHTML = html;
     document.getElementById("progress-chip").innerHTML = '<strong>' + done + '</strong> / ' + total + ' registradas';
+    var deleteBtn = document.getElementById("btn-delete-shift");
+    deleteBtn.hidden = !state.shiftDoc;
+    deleteBtn.classList.remove("confirming");
+    deleteBtn.textContent = "Eliminar registro del turno";
 
     list.querySelectorAll("[data-act-estado]").forEach(function(btn){
       btn.addEventListener("click", function(){
@@ -518,6 +548,11 @@
         updateActividad(ta.getAttribute("data-act-id"), { comentario: ta.value });
       });
     });
+    list.querySelectorAll("[data-act-clear]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        updateActividad(btn.getAttribute("data-act-id"), { estado: null, comentario: "" });
+      });
+    });
   }
 
   function renderActivityCard(act, data){
@@ -526,6 +561,7 @@
       return '<button type="button" class="estado-btn ' + e.key + '" data-act-id="' + esc(act.id) + '" data-act-estado="' + e.key +
         '" aria-pressed="' + (estado === e.key ? "true" : "false") + '">' + e.label + '</button>';
     }).join("");
+    var clearBtn = estado ? '<button type="button" class="btn-small" data-act-clear data-act-id="' + esc(act.id) + '">Limpiar / dejar sin registrar</button>' : '';
     var comentario = '';
     if (estado === "no_realizado") {
       comentario = '<div class="comentario-box"><label for="com-' + esc(act.id) + '">Motivo por el que no se realizó (obligatorio)</label>' +
@@ -535,7 +571,7 @@
     return '<div class="activity-card"><div class="activity-top"><div><div class="activity-name">' + esc(act.nombre) + '</div>' +
       (act.descripcion ? '<div class="activity-desc">' + esc(act.descripcion) + '</div>' : '') + '</div>' +
       '<div class="estado-seg" role="group" aria-label="Estado de ' + esc(act.nombre) + '">' + btns + '</div></div>' +
-      comentario + meta + '</div>';
+      comentario + '<div style="display:flex; justify-content:space-between; align-items:center;">' + meta + clearBtn + '</div></div>';
   }
 
   function updateActividad(actId, patch){
@@ -674,10 +710,27 @@
       noRealizadas.sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
       tbody.innerHTML = noRealizadas.map(function(r){
         return '<tr><td class="mono">' + esc(r.fecha) + '</td><td>' + esc(r.turno) + '</td><td>' + esc(r.area) +
-          '</td><td>' + esc(r.actividad) + '</td><td>' + esc(r.comentario || "—") + '</td><td>' + esc(r.responsable || "—") + '</td></tr>';
+          '</td><td>' + esc(r.actividad) + '</td><td>' + esc(r.comentario || "—") + '</td><td>' + esc(r.responsable || "—") +
+          '</td><td><button type="button" class="btn-small" data-fix-fecha="' + esc(r.fecha) + '" data-fix-turno="' + esc(r.turno) + '">Corregir</button></td></tr>';
       }).join("");
+      tbody.querySelectorAll("[data-fix-fecha]").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          goToShift(btn.getAttribute("data-fix-fecha"), btn.getAttribute("data-fix-turno"));
+        });
+      });
     }
     state._lastNoRealizadas = noRealizadas;
+  }
+
+  function goToShift(fecha, turno){
+    state.fecha = fecha;
+    state.turno = turno;
+    inputFecha.value = fecha;
+    document.querySelectorAll("[data-turno]").forEach(function(b){
+      b.setAttribute("aria-pressed", b.getAttribute("data-turno") === turno ? "true" : "false");
+    });
+    subscribeShift();
+    switchView("registro");
   }
 
   function renderTrend(byDay){
