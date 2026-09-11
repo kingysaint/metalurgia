@@ -305,6 +305,7 @@
           <button type="button" data-range="7">7 días</button>
           <button type="button" data-range="14">14 días</button>
           <button type="button" data-range="30">30 días</button>
+          <button type="button" data-range="all">Todo</button>
         </div>
       </div>
       <div class="spacer"></div>
@@ -316,6 +317,16 @@
       <div class="kpi-tile"><div class="label">No realizadas</div><div class="value bad" id="kpi-no-realizadas">—</div></div>
       <div class="kpi-tile"><div class="label">Turnos registrados</div><div class="value" id="kpi-turnos">—</div></div>
       <div class="kpi-tile"><div class="label">Sin registrar</div><div class="value" id="kpi-pendientes">—</div></div>
+    </div>
+
+    <div class="panel">
+      <h2>Turnos registrados en el período</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Fecha</th><th>Turno</th><th>Responsable</th><th>Realizadas</th><th>No realizadas</th><th>Sin registrar</th><th></th></tr></thead>
+          <tbody id="tabla-turnos"></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="panel">
@@ -627,13 +638,16 @@
   var dashEndInput = document.getElementById("dash-end");
   function setRange(days){
     state.dashEnd = todayStr();
-    state.dashStart = addDays(state.dashEnd, -(days-1));
+    state.dashStart = days === "all" ? addDays(state.dashEnd, -730) : addDays(state.dashEnd, -(days-1));
     dashStartInput.value = state.dashStart;
     dashEndInput.value = state.dashEnd;
     subscribeRange();
   }
   document.querySelectorAll("[data-range]").forEach(function(btn){
-    btn.addEventListener("click", function(){ setRange(Number(btn.getAttribute("data-range"))); });
+    btn.addEventListener("click", function(){
+      var v = btn.getAttribute("data-range");
+      setRange(v === "all" ? "all" : Number(v));
+    });
   });
   dashStartInput.addEventListener("change", function(){ state.dashStart = dashStartInput.value; subscribeRange(); });
   dashEndInput.addEventListener("change", function(){ state.dashEnd = dashEndInput.value; subscribeRange(); });
@@ -660,27 +674,30 @@
     var byArea = {};
     var byDay = {};
     var noRealizadas = [];
+    var turnos = [];
 
     docs.forEach(function(doc){
       byDay[doc.fecha] = byDay[doc.fecha] || {real:0, no:0};
+      var turnoCounts = {real:0, no:0, na:0, pend:0};
       var actEntries = doc.actividades || {};
       Object.keys(actEntries).forEach(function(actId){
         var entry = actEntries[actId];
         var areaId = entry.areaId || (actById(actId) || {}).areaId;
         var areaName = (areaById(areaId) || {}).nombre || "Sin área";
         byArea[areaName] = byArea[areaName] || {real:0, no:0, na:0};
-        if (entry.estado === "realizado"){ totalReal++; byArea[areaName].real++; byDay[doc.fecha].real++; }
+        if (entry.estado === "realizado"){ totalReal++; byArea[areaName].real++; byDay[doc.fecha].real++; turnoCounts.real++; }
         else if (entry.estado === "no_realizado"){
-          totalNo++; byArea[areaName].no++; byDay[doc.fecha].no++;
+          totalNo++; byArea[areaName].no++; byDay[doc.fecha].no++; turnoCounts.no++;
           noRealizadas.push({
             fecha: doc.fecha, turno: doc.turno, area: areaName,
             actividad: (actById(actId) || {}).nombre || actId,
             comentario: entry.comentario || "", responsable: doc.responsable || ""
           });
         }
-        else if (entry.estado === "no_aplica"){ totalNA++; byArea[areaName].na++; }
-        else { totalPend++; }
+        else if (entry.estado === "no_aplica"){ totalNA++; byArea[areaName].na++; turnoCounts.na++; }
+        else { totalPend++; turnoCounts.pend++; }
       });
+      turnos.push({ fecha: doc.fecha, turno: doc.turno, responsable: doc.responsable || "", counts: turnoCounts });
     });
 
     var denom = totalReal + totalNo;
@@ -689,6 +706,23 @@
     document.getElementById("kpi-no-realizadas").textContent = totalNo;
     document.getElementById("kpi-turnos").textContent = docs.length;
     document.getElementById("kpi-pendientes").textContent = totalPend;
+
+    var tablaTurnos = document.getElementById("tabla-turnos");
+    if (!turnos.length){
+      tablaTurnos.innerHTML = '<tr><td colspan="7" class="empty-note">Sin turnos registrados en el período seleccionado.</td></tr>';
+    } else {
+      turnos.sort(function(a,b){ return a.fecha === b.fecha ? (a.turno < b.turno ? 1 : -1) : (a.fecha < b.fecha ? 1 : -1); });
+      tablaTurnos.innerHTML = turnos.map(function(t){
+        return '<tr><td class="mono">' + esc(t.fecha) + '</td><td>' + esc(t.turno) + '</td><td>' + esc(t.responsable || "—") +
+          '</td><td>' + t.counts.real + '</td><td>' + (t.counts.no ? '<span class="estado-tag no_realizado">' + t.counts.no + '</span>' : '0') +
+          '</td><td>' + t.counts.pend + '</td><td><button type="button" class="btn-small" data-fix-fecha="' + esc(t.fecha) + '" data-fix-turno="' + esc(t.turno) + '">Abrir</button></td></tr>';
+      }).join("");
+      tablaTurnos.querySelectorAll("[data-fix-fecha]").forEach(function(btn){
+        btn.addEventListener("click", function(){
+          goToShift(btn.getAttribute("data-fix-fecha"), btn.getAttribute("data-fix-turno"));
+        });
+      });
+    }
 
     var barsHtml = "";
     Object.keys(byArea).sort().forEach(function(name){
