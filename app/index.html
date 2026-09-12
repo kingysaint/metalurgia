@@ -133,7 +133,7 @@
   .seg button{
     border:none; background:var(--surface-2); color:var(--text-muted);
     padding:8px 16px; font-size:13.5px; font-weight:600; cursor:pointer;
-    border-right:1px solid var(--border);
+    border-right:1px solid var(--border); white-space:nowrap;
   }
   .seg button:last-child{border-right:none;}
   .seg button[aria-pressed="true"]{background:var(--accent); color:var(--accent-contrast);}
@@ -344,20 +344,20 @@
             <button type="button" data-nov-turno="C" aria-pressed="false">Turno C</button>
           </div>
         </div>
-        <div class="field"><label>Tipo</label>
-          <div class="seg" role="group" aria-label="Tipo de mantención">
-            <button type="button" data-nov-mant="NP" aria-pressed="true">NP · No programada</button>
-            <button type="button" data-nov-mant="MP" aria-pressed="false">MP · Mantención programada</button>
-          </div>
+        <div class="field"><label for="nov-tipo-mant">Tipo</label>
+          <select id="nov-tipo-mant">
+            <option value="NP" selected>NP · No programada</option>
+            <option value="MP">MP · Mantención programada</option>
+          </select>
         </div>
         <div class="field"><label for="nov-area">Área</label><select id="nov-area"></select></div>
         <div class="field"><label for="nov-equipo">Equipo</label><select id="nov-equipo"></select></div>
-        <div class="field"><label>Disciplina</label>
-          <div class="seg" role="group" aria-label="Disciplina">
-            <button type="button" data-nov-disciplina="mecanico" aria-pressed="true">Mecánico</button>
-            <button type="button" data-nov-disciplina="electrico" aria-pressed="false">Eléctrico</button>
-            <button type="button" data-nov-disciplina="instrumentacion" aria-pressed="false">Instrumentación</button>
-          </div>
+        <div class="field"><label for="nov-disciplina">Disciplina</label>
+          <select id="nov-disciplina">
+            <option value="mecanico" selected>Mecánico</option>
+            <option value="electrico">Eléctrico</option>
+            <option value="instrumentacion">Instrumentación</option>
+          </select>
         </div>
         <div class="field"><label for="nov-tipo-falla">Tipo de falla</label><select id="nov-tipo-falla"></select></div>
         <div class="field"><label for="nov-compromiso">Entrega comprometida</label><input type="date" id="nov-compromiso"></div>
@@ -815,22 +815,12 @@
       });
     });
   });
-  document.querySelectorAll("[data-nov-mant]").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      state.novTipoMant = btn.getAttribute("data-nov-mant");
-      document.querySelectorAll("[data-nov-mant]").forEach(function(b){
-        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
-      });
-    });
+  document.getElementById("nov-tipo-mant").addEventListener("change", function(){
+    state.novTipoMant = this.value;
   });
-  document.querySelectorAll("[data-nov-disciplina]").forEach(function(btn){
-    btn.addEventListener("click", function(){
-      state.novDisciplina = btn.getAttribute("data-nov-disciplina");
-      document.querySelectorAll("[data-nov-disciplina]").forEach(function(b){
-        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
-      });
-      populateNovTipoFallaSelect();
-    });
+  document.getElementById("nov-disciplina").addEventListener("change", function(){
+    state.novDisciplina = this.value;
+    populateNovTipoFallaSelect();
   });
   document.querySelectorAll("[data-nov-filter]").forEach(function(btn){
     btn.addEventListener("click", function(){
