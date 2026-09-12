@@ -241,6 +241,32 @@
     display:grid; grid-template-columns:1fr 70px 85px 130px 72px; gap:10px; align-items:center;
     padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;
   }
+  .catalog-row-var{
+    display:grid; grid-template-columns:1fr 64px 62px 62px 56px 78px 108px 72px; gap:8px; align-items:center;
+    padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;
+  }
+  .catalog-row-var input[type="text"]{width:100%;}
+  .catalog-row-var input[type="number"]{width:100%; padding:7px 8px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); color:var(--text); font-family:inherit; font-size:13px;}
+  .catalog-row-var.inactive{opacity:.5;}
+  .catalog-head{
+    display:grid; grid-template-columns:1fr 64px 62px 62px 56px 78px 108px 72px; gap:8px;
+    font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);
+    font-weight:600; padding-bottom:6px; border-bottom:1px solid var(--border);
+  }
+  .var-card{
+    background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+    padding:12px 16px; margin-bottom:8px; box-shadow:var(--shadow);
+    display:flex; flex-wrap:wrap; gap:12px 16px; align-items:center;
+  }
+  .var-card.fuera{border-color:var(--bad);}
+  .var-name{font-size:14px; font-weight:600; flex:1; min-width:180px;}
+  .var-target{font-size:11.5px; color:var(--text-muted); font-family:"IBM Plex Mono",monospace; margin-top:2px; font-weight:400;}
+  .var-input{
+    width:110px; text-align:right; font-family:"IBM Plex Mono",monospace; font-size:14px;
+    padding:8px 10px; border:1px solid var(--border); border-radius:7px;
+    background:var(--surface-2); color:var(--text);
+  }
+  .var-unidad{font-size:12.5px; color:var(--text-muted); min-width:38px;}
   .catalog-row.inactive{opacity:.5;}
   .catalog-row input[type="text"]{width:100%;}
   .catalog-row input[type="number"]{width:64px; padding:7px 8px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); color:var(--text); font-family:inherit;}
@@ -257,6 +283,8 @@
 
   @media (max-width:560px){
     .catalog-row{grid-template-columns:1fr; gap:6px;}
+    .catalog-row-var{grid-template-columns:1fr 1fr; gap:6px;}
+    .catalog-head{display:none;}
     .bar-row{grid-template-columns:1fr; gap:4px;}
     .activity-top{flex-direction:column; align-items:stretch;}
   }
@@ -273,6 +301,7 @@
     </div>
     <nav class="tabs" aria-label="Secciones">
       <button class="tab-btn" data-view="registro" aria-current="true" id="nav-registro">Registro</button>
+      <button class="tab-btn" data-view="variables" id="nav-variables">Variables</button>
       <button class="tab-btn" data-view="novedades" id="nav-novedades">Novedades<span class="nav-badge" id="novedades-badge" hidden>0</span></button>
       <button class="tab-btn" data-view="dashboard" id="nav-dashboard">Dashboard</button>
       <button class="tab-btn" data-view="catalogo" id="nav-catalogo">Catálogo</button>
@@ -308,6 +337,50 @@
       <button type="button" class="btn danger" id="btn-delete-shift" hidden>Eliminar registro del turno</button>
     </div>
     <div id="registro-list"></div>
+  </section>
+
+  <section id="view-variables" class="view" hidden>
+    <div class="toolbar">
+      <div class="field">
+        <label for="var-fecha">Fecha</label>
+        <input type="date" id="var-fecha">
+      </div>
+      <div class="field">
+        <label>Turno</label>
+        <div class="seg" role="group" aria-label="Turno de las variables">
+          <button type="button" data-var-turno="A" aria-pressed="true">Turno A</button>
+          <button type="button" data-var-turno="C" aria-pressed="false">Turno C</button>
+        </div>
+      </div>
+      <div class="field" style="min-width:200px; flex:1;">
+        <label for="var-responsable">Responsable del control</label>
+        <input type="text" id="var-responsable" placeholder="Nombre y cargo">
+      </div>
+      <div class="spacer"></div>
+      <div class="progress-chip" id="var-chip">0 / 0 registradas</div>
+      <div class="progress-chip" id="var-chip-fuera" hidden>0 fuera de rango</div>
+    </div>
+
+    <div id="variables-list"></div>
+
+    <div class="panel">
+      <h2>Tendencia de una variable</h2>
+      <div class="add-form" style="margin-top:0; margin-bottom:14px;">
+        <div class="field" style="min-width:240px; flex:1;">
+          <label for="var-trend-sel">Variable</label>
+          <select id="var-trend-sel"></select>
+        </div>
+        <div class="field">
+          <label>Período</label>
+          <div class="seg" role="group" aria-label="Período de tendencia">
+            <button type="button" data-var-range="7" aria-pressed="false">7 días</button>
+            <button type="button" data-var-range="14" aria-pressed="true">14 días</button>
+            <button type="button" data-var-range="30" aria-pressed="false">30 días</button>
+          </div>
+        </div>
+      </div>
+      <div id="var-trend-chart"></div>
+    </div>
   </section>
 
   <section id="view-novedades" class="view" hidden>
@@ -460,6 +533,21 @@
     </div>
 
     <div class="catalog-section">
+      <h2 style="font-size:15px; margin-bottom:10px;">Variables de proceso</h2>
+      <p class="note" style="margin-bottom:10px;">Variables que se controlan por turno en cada área (ej: % Sólido, +65 #, Presión batería 1). El rango mín/máx es opcional: si lo defines, la app marca en rojo los valores fuera de rango.</p>
+      <div class="catalog-head">
+        <span>Variable</span><span>Unidad</span><span>Mín</span><span>Máx</span><span>Orden</span><span>Activa</span><span>Área</span><span></span>
+      </div>
+      <div id="catalog-variables"></div>
+      <div class="add-form">
+        <div class="field"><label for="new-var-area">Área</label><select id="new-var-area"></select></div>
+        <div class="field"><label for="new-var-nombre">Nueva variable</label><input type="text" id="new-var-nombre" placeholder="Ej: % Sólido"></div>
+        <div class="field" style="min-width:90px; flex:0;"><label for="new-var-unidad">Unidad</label><input type="text" id="new-var-unidad" placeholder="%" style="width:80px;"></div>
+        <button class="btn" id="btn-add-variable">Agregar variable</button>
+      </div>
+    </div>
+
+    <div class="catalog-section">
       <h2 style="font-size:15px; margin-bottom:10px;">Equipos (Novedades)</h2>
       <p class="note" style="margin-bottom:10px;">Equipos de cada área sobre los que se reportan novedades (ej: Molino de Bolas 1, Molino de Bolas 3). Al reportar una novedad, el equipo se elige según el área seleccionada.</p>
       <div id="catalog-equipos"></div>
@@ -509,6 +597,11 @@
   var DEFAULT_ACTIVIDADES = [
     {id:"act-carguio-acero", areaId:"area-molienda-convencional", nombre:"Carguío de acero (bolas) en molienda convencional", descripcion:"Verificar carguío según programa de molienda", orden:1}
   ];
+  var DEFAULT_VARIABLES = [
+    {id:"var-conv-solido", areaId:"area-molienda-convencional", nombre:"% Sólido", unidad:"%", min:null, max:null, orden:1},
+    {id:"var-conv-65", areaId:"area-molienda-convencional", nombre:"+65 #", unidad:"%", min:null, max:null, orden:2},
+    {id:"var-conv-presion-bat1", areaId:"area-molienda-convencional", nombre:"Presión batería 1", unidad:"psi", min:null, max:null, orden:3}
+  ];
   var DEFAULT_EQUIPOS = [
     {id:"eq-molino-bolas-1", areaId:"area-molienda-convencional", nombre:"Molino de Bolas 1", orden:1},
     {id:"eq-molino-bolas-3", areaId:"area-molienda-convencional", nombre:"Molino de Bolas 3", orden:2}
@@ -553,6 +646,13 @@
     actividades: DEFAULT_ACTIVIDADES.slice(),
     tiposFalla: DEFAULT_TIPOS_FALLA.slice(),
     equipos: DEFAULT_EQUIPOS.slice(),
+    variables: DEFAULT_VARIABLES.slice(),
+    medDoc: null,
+    medRangeDocs: [],
+    varFecha: todayStr(),
+    varTurno: "A",
+    varTrendId: "",
+    varTrendDias: 14,
     novedades: [],
     novFilter: "pendientes",
     novTurno: "A",
@@ -575,6 +675,9 @@
   var unsubTiposFalla = null;
   var unsubNovedades = null;
   var unsubEquipos = null;
+  var unsubVariables = null;
+  var unsubMed = null;
+  var unsubMedRange = null;
 
   function todayStr(d){
     d = d || new Date();
@@ -607,6 +710,18 @@
   function actById(id){ return state.actividades.filter(function(a){ return a.id === id; })[0]; }
   function tipoFallaById(id){ return state.tiposFalla.filter(function(t){ return t.id === id; })[0]; }
   function equipoById(id){ return state.equipos.filter(function(e){ return e.id === id; })[0]; }
+  function variableById(id){ return state.variables.filter(function(v){ return v.id === id; })[0]; }
+  function numOrNull(v){
+    if (v === "" || v === null || v === undefined) return null;
+    var n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+  function fueraDeRango(v, valor){
+    if (valor === null || valor === undefined) return false;
+    if (v.min !== null && v.min !== undefined && v.min !== "" && valor < Number(v.min)) return true;
+    if (v.max !== null && v.max !== undefined && v.max !== "" && valor > Number(v.max)) return true;
+    return false;
+  }
   function disciplinaLabel(key){ return DISCIPLINAS[key] || key; }
   function armConfirm(btn, label, onConfirm){
     if (!btn.classList.contains("confirming")){
@@ -628,10 +743,11 @@
   });
   function switchView(view){
     state.view = view;
-    ["registro","novedades","dashboard","catalogo"].forEach(function(v){
+    ["registro","variables","novedades","dashboard","catalogo"].forEach(function(v){
       document.getElementById("view-"+v).hidden = (v !== view);
       document.getElementById("nav-"+v).setAttribute("aria-current", v === view ? "true" : "false");
     });
+    if (view === "variables") renderVariables();
     if (view === "novedades") renderNovedades();
     if (view === "dashboard") renderDashboard();
     if (view === "catalogo") renderCatalogo();
@@ -800,6 +916,293 @@
     }, function(err){
       showToast("Error de sincronización: " + err.code);
     });
+  }
+
+  // ---------- Variables de proceso ----------
+  var varFechaInput = document.getElementById("var-fecha");
+  var varResponsableInput = document.getElementById("var-responsable");
+  varFechaInput.value = state.varFecha;
+
+  varFechaInput.addEventListener("change", function(){
+    state.varFecha = varFechaInput.value || todayStr();
+    subscribeMediciones();
+  });
+  document.querySelectorAll("[data-var-turno]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.varTurno = btn.getAttribute("data-var-turno");
+      document.querySelectorAll("[data-var-turno]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      subscribeMediciones();
+    });
+  });
+  varResponsableInput.addEventListener("blur", function(){
+    var base = state.medDoc ? JSON.parse(JSON.stringify(state.medDoc)) : { fecha: state.varFecha, turno: state.varTurno, valores: {} };
+    base.responsable = varResponsableInput.value;
+    state.medDoc = base;
+    persistMediciones(base);
+  });
+  document.getElementById("var-trend-sel").addEventListener("change", function(){
+    state.varTrendId = this.value;
+    renderVarTrend();
+  });
+  document.querySelectorAll("[data-var-range]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.varTrendDias = Number(btn.getAttribute("data-var-range"));
+      document.querySelectorAll("[data-var-range]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+      subscribeMedRange();
+    });
+  });
+
+  function activeVariables(){ return state.variables.filter(function(v){ return v.activo !== false; }); }
+  function valorActual(varId){
+    var d = state.medDoc && state.medDoc.valores && state.medDoc.valores[varId];
+    return d || {};
+  }
+
+  function persistMediciones(fullDoc){
+    fullDoc.fecha = state.varFecha;
+    fullDoc.turno = state.varTurno;
+    fullDoc.updatedAt = new Date().toISOString();
+    if (!state.db){ showToast("Guardado localmente (sin conexión)"); return; }
+    state.db.collection("mediciones").doc(shiftDocId(state.varFecha, state.varTurno)).set(fullDoc)
+      .then(function(){ showToast("Guardado"); })
+      .catch(function(err){ showToast("Error al guardar: " + (err && err.code || "desconocido")); });
+  }
+
+  function updateVariableValor(varId, patch){
+    var v = variableById(varId);
+    if (!v) return;
+    var base = state.medDoc ? JSON.parse(JSON.stringify(state.medDoc)) : { fecha: state.varFecha, turno: state.varTurno, valores: {} };
+    base.valores = base.valores || {};
+    var cur = base.valores[varId] || {};
+    base.valores[varId] = Object.assign({}, cur, patch, { areaId: v.areaId, updatedAt: new Date().toISOString() });
+    state.medDoc = base;
+    renderVariablesList();
+    persistMediciones(base);
+  }
+
+  function subscribeMediciones(){
+    if (unsubMed){ unsubMed(); unsubMed = null; }
+    state.medDoc = null;
+    renderVariablesList();
+    if (!state.db) return;
+    unsubMed = state.db.collection("mediciones").doc(shiftDocId(state.varFecha, state.varTurno))
+      .onSnapshot(function(snap){
+        state.medDoc = snap.exists ? snap.data() : null;
+        renderVariablesList();
+      }, function(err){ showToast("Error de sincronización: " + err.code); });
+  }
+
+  function subscribeMedRange(){
+    if (unsubMedRange){ unsubMedRange(); unsubMedRange = null; }
+    if (!state.db){ renderVarTrend(); return; }
+    var fin = todayStr();
+    var ini = addDays(fin, -(state.varTrendDias - 1));
+    unsubMedRange = state.db.collection("mediciones")
+      .where("fecha", ">=", ini).where("fecha", "<=", fin).limit(1000)
+      .onSnapshot(function(snap){
+        state.medRangeDocs = snap.docs.map(function(d){ return d.data(); });
+        renderVarTrend();
+      }, function(err){ showToast("Error de sincronización: " + err.code); });
+  }
+
+  function renderVariablesList(){
+    var listEl = document.getElementById("variables-list");
+    var areas = activeAreas();
+    var vars = activeVariables();
+    varResponsableInput.value = (state.medDoc && state.medDoc.responsable) || "";
+
+    var total = 0, hechas = 0, fuera = 0;
+    var html = "";
+    areas.forEach(function(area){
+      var areaVars = vars.filter(function(v){ return v.areaId === area.id; }).sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      if (!areaVars.length) return;
+      html += '<div class="area-group"><div class="area-title">' + esc(area.nombre) +
+        '<span class="count">' + areaVars.length + ' variable' + (areaVars.length===1?'':'s') + '</span></div>';
+      areaVars.forEach(function(v){
+        total++;
+        var d = valorActual(v.id);
+        var valor = (d.valor === null || d.valor === undefined) ? null : Number(d.valor);
+        if (valor !== null) hechas++;
+        var mal = fueraDeRango(v, valor);
+        if (mal) fuera++;
+        var rango = "";
+        if (v.min !== null && v.min !== undefined && v.min !== "" && v.max !== null && v.max !== undefined && v.max !== "") rango = "Rango " + v.min + " – " + v.max;
+        else if (v.min !== null && v.min !== undefined && v.min !== "") rango = "Mín " + v.min;
+        else if (v.max !== null && v.max !== undefined && v.max !== "") rango = "Máx " + v.max;
+        html += '<div class="var-card' + (mal ? ' fuera' : '') + '">' +
+          '<div class="var-name"><label for="val-' + esc(v.id) + '">' + esc(v.nombre) + '</label>' +
+          (rango ? '<div class="var-target">' + esc(rango) + (v.unidad ? " " + esc(v.unidad) : "") + '</div>' : '') + '</div>' +
+          (mal ? '<span class="estado-tag no_realizado">Fuera de rango</span>' : '') +
+          '<input type="number" step="any" class="var-input" id="val-' + esc(v.id) + '" value="' + (valor === null ? "" : valor) + '" data-var-valor data-id="' + esc(v.id) + '" placeholder="—">' +
+          '<span class="var-unidad">' + esc(v.unidad || "") + '</span>' +
+          '<input type="text" class="var-comentario" placeholder="Observación (opcional)" value="' + esc(d.comentario || "") + '" data-var-comentario data-id="' + esc(v.id) + '" style="flex:1; min-width:160px;">' +
+          '</div>';
+      });
+      html += '</div>';
+    });
+    if (!html) html = '<p class="empty-note">No hay variables definidas. Ve a Catálogo → "Variables de proceso" para agregarlas.</p>';
+    listEl.innerHTML = html;
+
+    document.getElementById("var-chip").innerHTML = '<strong>' + hechas + '</strong> / ' + total + ' registradas';
+    var chipFuera = document.getElementById("var-chip-fuera");
+    chipFuera.hidden = fuera === 0;
+    chipFuera.innerHTML = '<strong style="color:var(--bad);">' + fuera + '</strong> fuera de rango';
+
+    listEl.querySelectorAll("[data-var-valor]").forEach(function(input){
+      input.addEventListener("change", function(){
+        updateVariableValor(input.getAttribute("data-id"), { valor: numOrNull(input.value) });
+      });
+    });
+    listEl.querySelectorAll("[data-var-comentario]").forEach(function(input){
+      input.addEventListener("blur", function(){
+        updateVariableValor(input.getAttribute("data-id"), { comentario: input.value });
+      });
+    });
+  }
+
+  function populateVarTrendSelect(){
+    var sel = document.getElementById("var-trend-sel");
+    var current = sel.value || state.varTrendId;
+    var opts = activeVariables().sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+    sel.innerHTML = opts.length ? opts.map(function(v){
+      var area = areaById(v.areaId);
+      return '<option value="' + esc(v.id) + '">' + esc(v.nombre) + (area ? " — " + esc(area.nombre) : "") + '</option>';
+    }).join("") : '<option value="">Sin variables definidas</option>';
+    if (opts.some(function(v){ return v.id === current; })) sel.value = current;
+    state.varTrendId = sel.value;
+  }
+
+  function renderVarTrend(){
+    var cont = document.getElementById("var-trend-chart");
+    var v = variableById(state.varTrendId);
+    if (!v){ cont.innerHTML = '<p class="empty-note">Selecciona una variable.</p>'; return; }
+
+    var puntos = [];
+    state.medRangeDocs.forEach(function(doc){
+      var entry = doc.valores && doc.valores[v.id];
+      if (!entry || entry.valor === null || entry.valor === undefined) return;
+      puntos.push({ key: doc.fecha + "_" + doc.turno, fecha: doc.fecha, turno: doc.turno, valor: Number(entry.valor) });
+    });
+    puntos.sort(function(a,b){ return a.key < b.key ? -1 : 1; });
+
+    if (!puntos.length){ cont.innerHTML = '<p class="empty-note">Sin mediciones de esta variable en el período.</p>'; return; }
+
+    var min = v.min !== null && v.min !== undefined && v.min !== "" ? Number(v.min) : null;
+    var max = v.max !== null && v.max !== undefined && v.max !== "" ? Number(v.max) : null;
+    var valores = puntos.map(function(p){ return p.valor; });
+    var lo = Math.min.apply(null, valores), hi = Math.max.apply(null, valores);
+    if (min !== null) lo = Math.min(lo, min);
+    if (max !== null) hi = Math.max(hi, max);
+    if (lo === hi){ lo = lo - 1; hi = hi + 1; }
+    var margen = (hi - lo) * 0.12;
+    lo -= margen; hi += margen;
+
+    var w = 660, h = 200, padL = 46, padR = 12, padT = 12, padB = 30;
+    var innerW = w - padL - padR, innerH = h - padT - padB;
+    var n = puntos.length;
+    function yFor(val){ return padT + innerH - ((val - lo) / (hi - lo)) * innerH; }
+    function xFor(i){ return padL + (n <= 1 ? innerW / 2 : (i / (n - 1)) * innerW); }
+
+    var ticks = [lo, lo + (hi-lo)/2, hi].map(function(val){
+      var y = yFor(val);
+      return '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w-padR) + '" y2="' + y.toFixed(1) + '" stroke="var(--border)" stroke-width="1"/>' +
+        '<text x="' + (padL - 6) + '" y="' + (y+3.5).toFixed(1) + '" text-anchor="end" font-size="9.5" fill="var(--text-muted)" font-family="IBM Plex Mono, monospace">' + (Math.round(val*10)/10) + '</text>';
+    }).join("");
+
+    var banda = "";
+    if (min !== null && max !== null){
+      var yMax = yFor(max), yMin = yFor(min);
+      banda = '<rect x="' + padL + '" y="' + yMax.toFixed(1) + '" width="' + innerW + '" height="' + Math.abs(yMin - yMax).toFixed(1) +
+        '" fill="var(--good)" opacity="0.10"/>';
+    }
+    var limites = "";
+    [min, max].forEach(function(lim){
+      if (lim === null) return;
+      var y = yFor(lim);
+      limites += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (w-padR) + '" y2="' + y.toFixed(1) +
+        '" stroke="var(--bad)" stroke-width="1" stroke-dasharray="4 3"/>';
+    });
+
+    var path = puntos.map(function(p, i){
+      return (i === 0 ? "M" : "L") + xFor(i).toFixed(1) + " " + yFor(p.valor).toFixed(1);
+    }).join(" ");
+
+    var dots = puntos.map(function(p, i){
+      var mal = fueraDeRango(v, p.valor);
+      return '<circle cx="' + xFor(i).toFixed(1) + '" cy="' + yFor(p.valor).toFixed(1) + '" r="3" fill="' +
+        (mal ? "var(--bad)" : "var(--accent)") + '"><title>' + esc(p.fecha) + " turno " + esc(p.turno) + ": " + p.valor + " " + esc(v.unidad || "") + '</title></circle>';
+    }).join("");
+
+    var etiquetas = "";
+    var paso = Math.max(1, Math.ceil(n / 8));
+    puntos.forEach(function(p, i){
+      if (i % paso !== 0 && i !== n - 1) return;
+      etiquetas += '<text x="' + xFor(i).toFixed(1) + '" y="' + (h - 10) + '" text-anchor="middle" font-size="9" fill="var(--text-muted)" font-family="IBM Plex Mono, monospace">' +
+        esc(p.fecha.slice(5)) + esc(p.turno) + '</text>';
+    });
+
+    cont.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%; height:auto;" role="img" aria-label="Tendencia de ' + esc(v.nombre) + '">' +
+      banda + ticks + limites +
+      '<path d="' + path + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' +
+      dots + etiquetas + '</svg>' +
+      '<p class="note" style="margin-top:8px;">' + esc(v.nombre) + (v.unidad ? " (" + esc(v.unidad) + ")" : "") +
+      (min !== null || max !== null ? ' · línea roja punteada = límite de rango' : ' · sin rango definido en el Catálogo') + '</p>';
+  }
+
+  function renderVariables(){
+    populateVarTrendSelect();
+    renderVariablesList();
+    renderVarTrend();
+  }
+
+  document.getElementById("btn-add-variable").addEventListener("click", function(){
+    var nombreInput = document.getElementById("new-var-nombre");
+    var unidadInput = document.getElementById("new-var-unidad");
+    var areaId = document.getElementById("new-var-area").value;
+    var nombre = nombreInput.value.trim();
+    if (!nombre || !areaId) return;
+    var orden = state.variables.length ? Math.max.apply(null, state.variables.map(function(v){ return v.orden||0; })) + 1 : 1;
+    var data = { areaId: areaId, nombre: nombre, unidad: unidadInput.value.trim(), min: null, max: null, orden: orden, activo: true };
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection("variables").add(data).then(function(){
+      nombreInput.value = ""; unidadInput.value = "";
+      showToast("Variable agregada");
+    }).catch(function(err){ showToast("Error: " + err.code); });
+  });
+
+  function renderCatalogoVariables(){
+    var html = state.variables.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(v){
+      var area = areaById(v.areaId);
+      return '<div class="catalog-row-var' + (v.activo === false ? ' inactive' : '') + '">' +
+        '<input type="text" value="' + esc(v.nombre) + '" data-var-field="nombre" data-id="' + esc(v.id) + '">' +
+        '<input type="text" value="' + esc(v.unidad || "") + '" data-var-field="unidad" data-id="' + esc(v.id) + '" placeholder="u.">' +
+        '<input type="number" step="any" value="' + (v.min === null || v.min === undefined ? "" : v.min) + '" data-var-field="min" data-id="' + esc(v.id) + '">' +
+        '<input type="number" step="any" value="' + (v.max === null || v.max === undefined ? "" : v.max) + '" data-var-field="max" data-id="' + esc(v.id) + '">' +
+        '<input type="number" value="' + (v.orden||0) + '" data-var-field="orden" data-id="' + esc(v.id) + '">' +
+        '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (v.activo!==false?'checked':'') + ' data-var-field="activo" data-id="' + esc(v.id) + '"> Activa</label>' +
+        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span>' +
+        '<button type="button" class="btn-small" data-del-catalog data-coll="variables" data-id="' + esc(v.id) + '">Eliminar</button></div>';
+    }).join("");
+    document.getElementById("catalog-variables").innerHTML = html || '<p class="empty-note">Sin variables definidas.</p>';
+
+    var sel = document.getElementById("new-var-area");
+    sel.innerHTML = activeAreas().map(function(a){ return '<option value="' + esc(a.id) + '">' + esc(a.nombre) + '</option>'; }).join("");
+
+    document.querySelectorAll("[data-var-field]").forEach(function(el){
+      el.addEventListener("change", function(){
+        var id = el.getAttribute("data-id"), field = el.getAttribute("data-var-field");
+        var val;
+        if (el.type === "checkbox") val = el.checked;
+        else if (el.type === "number") val = (field === "orden") ? Number(el.value) : numOrNull(el.value);
+        else val = el.value;
+        saveCatalogField("variables", id, field, val, state.variables);
+      });
+    });
+    bindCatalogDelete("catalog-variables");
   }
 
   // ---------- Novedades ----------
@@ -1399,6 +1802,7 @@
     bindCatalogDelete("catalog-areas");
     bindCatalogDelete("catalog-actividades");
 
+    renderCatalogoVariables();
     renderCatalogoEquipos();
     renderCatalogoTiposFalla();
   }
@@ -1456,6 +1860,7 @@
   // ---------- Boot ----------
   renderRegistro();
   renderNovedades();
+  renderVariables();
 
   function setStatus(online){
     document.getElementById("status-dot").classList.toggle("online", online);
@@ -1474,6 +1879,7 @@
         state.areas = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         renderRegistro();
         renderNovedades();
+        renderVariables();
         if (state.view === "catalogo") renderCatalogo();
         if (state.view === "dashboard") renderDashboard();
       }, function(err){ showToast("Error catálogo áreas: " + err.code); });
@@ -1484,6 +1890,12 @@
         if (state.view === "catalogo") renderCatalogo();
         if (state.view === "dashboard") renderDashboard();
       }, function(err){ showToast("Error catálogo actividades: " + err.code); });
+
+      unsubVariables = db.collection("variables").onSnapshot(function(snap){
+        state.variables = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
+        renderVariables();
+        if (state.view === "catalogo") renderCatalogo();
+      }, function(err){ showToast("Error catálogo variables: " + err.code); });
 
       unsubEquipos = db.collection("equipos").onSnapshot(function(snap){
         state.equipos = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
@@ -1503,6 +1915,8 @@
       }, function(err){ showToast("Error novedades: " + err.code); });
 
       subscribeShift();
+      subscribeMediciones();
+      subscribeMedRange();
       setRange(14);
     });
     window.claude.use("downloads").then(function(d){ state.downloads = d; });
