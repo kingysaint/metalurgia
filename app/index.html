@@ -208,6 +208,12 @@
   .disc-tag.mecanico{color:var(--accent); background:color-mix(in srgb, var(--accent) 18%, transparent);}
   .disc-tag.electrico{color:var(--warn); background:var(--warn-bg);}
   .disc-tag.instrumentacion{color:var(--good); background:var(--good-bg);}
+  .mant-tag{
+    display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700;
+    border:1px solid var(--border); background:transparent; color:var(--text-muted); letter-spacing:.03em;
+    white-space:nowrap;
+  }
+  .mant-tag.NP{border-color:var(--bad); color:var(--bad);}
   .nav-badge{
     display:inline-block; min-width:16px; padding:1px 5px; border-radius:999px;
     background:var(--bad); color:#fff; font-size:10.5px; font-weight:700; margin-left:6px;
@@ -336,6 +342,12 @@
           <div class="seg" role="group" aria-label="Turno de la novedad">
             <button type="button" data-nov-turno="A" aria-pressed="true">Turno A</button>
             <button type="button" data-nov-turno="C" aria-pressed="false">Turno C</button>
+          </div>
+        </div>
+        <div class="field"><label>Tipo</label>
+          <div class="seg" role="group" aria-label="Tipo de mantención">
+            <button type="button" data-nov-mant="NP" aria-pressed="true">NP · No programada</button>
+            <button type="button" data-nov-mant="MP" aria-pressed="false">MP · Mantención programada</button>
           </div>
         </div>
         <div class="field"><label for="nov-area">Área</label><select id="nov-area"></select></div>
@@ -545,6 +557,7 @@
     novFilter: "pendientes",
     novTurno: "A",
     novDisciplina: "mecanico",
+    novTipoMant: "NP",
     fecha: todayStr(),
     turno: "A",
     shiftDoc: null,
@@ -802,6 +815,14 @@
       });
     });
   });
+  document.querySelectorAll("[data-nov-mant]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      state.novTipoMant = btn.getAttribute("data-nov-mant");
+      document.querySelectorAll("[data-nov-mant]").forEach(function(b){
+        b.setAttribute("aria-pressed", b === btn ? "true" : "false");
+      });
+    });
+  });
   document.querySelectorAll("[data-nov-disciplina]").forEach(function(btn){
     btn.addEventListener("click", function(){
       state.novDisciplina = btn.getAttribute("data-nov-disciplina");
@@ -875,6 +896,7 @@
       areaNombre: area ? area.nombre : "",
       equipoId: equipo.id,
       equipo: equipo.nombre,
+      tipoMantencion: state.novTipoMant,
       disciplina: state.novDisciplina,
       tipoFallaId: tipo.id,
       tipoFallaNombre: tipo.nombre,
@@ -937,6 +959,9 @@
     var estadoTag = finalizada ? '<span class="estado-tag ok">Finalizada</span>' :
       '<span class="estado-tag pendiente">Pendiente · ' + abierta + " día" + (abierta === 1 ? "" : "s") + '</span>';
     var discTag = '<span class="disc-tag ' + esc(n.disciplina) + '">' + esc(disciplinaLabel(n.disciplina)) + '</span>';
+    var mantTag = n.tipoMantencion
+      ? '<span class="mant-tag ' + esc(n.tipoMantencion) + '" title="' + (n.tipoMantencion === "MP" ? "Mantención programada" : "No programada") + '">' + esc(n.tipoMantencion) + '</span>'
+      : '';
     var avance = typeof n.avance === "number" ? n.avance : (finalizada ? 100 : 0);
     var plazo = diasDePlazo(n);
     var plazoTxt = "";
@@ -961,6 +986,12 @@
         '<input type="number" id="av-' + esc(n.id) + '" min="0" max="100" step="5" value="' + avance + '" data-nov-avance data-id="' + esc(n.id) + '" style="width:80px;"></div>' +
         '<div class="field"><label for="fc-' + esc(n.id) + '">Entrega comprometida</label>' +
         '<input type="date" id="fc-' + esc(n.id) + '" value="' + esc(n.fechaCompromiso || "") + '" data-nov-compromiso data-id="' + esc(n.id) + '"></div>' +
+        '<div class="field"><label for="mt-' + esc(n.id) + '">Tipo</label>' +
+        '<select id="mt-' + esc(n.id) + '" data-nov-mant-edit data-id="' + esc(n.id) + '">' +
+          '<option value=""' + (n.tipoMantencion ? "" : " selected") + '>—</option>' +
+          '<option value="NP"' + (n.tipoMantencion === "NP" ? " selected" : "") + '>NP · No programada</option>' +
+          '<option value="MP"' + (n.tipoMantencion === "MP" ? " selected" : "") + '>MP · Mantención programada</option>' +
+        '</select></div>' +
       '</div>';
 
     var metaLine = "Reportada " + esc(n.fecha) + " turno " + esc(n.turno) + (n.reportadoPor ? " por " + esc(n.reportadoPor) : "") +
@@ -970,7 +1001,7 @@
       '<div class="activity-top"><div><div class="activity-name">' + esc(n.equipo) +
       (n.areaNombre ? ' <span style="font-weight:400; color:var(--text-muted);">— ' + esc(n.areaNombre) + '</span>' : '') + '</div>' +
       '<div class="activity-desc">' + esc(n.tipoFallaNombre) + '</div></div>' +
-      '<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' + discTag + estadoTag + '</div></div>' +
+      '<div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">' + mantTag + discTag + estadoTag + '</div></div>' +
       (n.comentario ? '<div class="row-meta" style="font-family:inherit; color:var(--text); margin-top:10px;">' + esc(n.comentario) + '</div>' : '') +
       '<div class="bar-row" style="margin-top:12px; grid-template-columns:70px 1fr 48px;">' +
         '<div style="font-size:12px; color:var(--text-muted);">Avance</div>' +
@@ -1014,6 +1045,11 @@
       listEl.querySelectorAll("[data-nov-compromiso]").forEach(function(input){
         input.addEventListener("change", function(){
           updateNovedadCampo(input.getAttribute("data-id"), { fechaCompromiso: input.value || "" });
+        });
+      });
+      listEl.querySelectorAll("[data-nov-mant-edit]").forEach(function(sel){
+        sel.addEventListener("change", function(){
+          updateNovedadCampo(sel.getAttribute("data-id"), { tipoMantencion: sel.value });
         });
       });
     }
