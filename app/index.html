@@ -232,7 +232,7 @@
 
   .catalog-section{margin-bottom:26px;}
   .catalog-row{
-    display:grid; grid-template-columns:1fr 90px 90px 90px; gap:10px; align-items:center;
+    display:grid; grid-template-columns:1fr 70px 85px 130px 72px; gap:10px; align-items:center;
     padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;
   }
   .catalog-row.inactive{opacity:.5;}
@@ -420,9 +420,10 @@
 
   <section id="view-catalogo" class="view" hidden>
     <p class="note" style="margin-bottom:18px;">
-      Este catálogo define qué actividades aparecen en el Registro diario. Las áreas ya están cargadas con tus
-      plantas reales — agrega aquí las actividades de control de cada una. Desactivar un área o actividad la oculta
-      del registro sin borrar el historial ya guardado.
+      Este catálogo define qué aparece en el Registro diario y en Novedades. <strong>Desactivar</strong> oculta el
+      ítem de los registros nuevos pero conserva el historial ya guardado — es lo recomendado para algo que se dejó
+      de usar. <strong>Eliminar</strong> lo borra definitivamente del catálogo; úsalo para entradas repetidas o
+      cargadas por error.
     </p>
 
     <div class="catalog-section">
@@ -1079,7 +1080,8 @@
         '<input type="text" value="' + esc(e.nombre) + '" data-equipo-field="nombre" data-id="' + esc(e.id) + '">' +
         '<input type="number" value="' + (e.orden||0) + '" data-equipo-field="orden" data-id="' + esc(e.id) + '" title="Orden">' +
         '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (e.activo!==false?'checked':'') + ' data-equipo-field="activo" data-id="' + esc(e.id) + '"> Activo</label>' +
-        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span></div>';
+        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span>' +
+        '<button type="button" class="btn-small" data-del-catalog data-coll="equipos" data-id="' + esc(e.id) + '">Eliminar</button></div>';
     }).join("");
     document.getElementById("catalog-equipos").innerHTML = html || '<p class="empty-note">Sin equipos. Agrega los equipos de cada área para poder reportar novedades.</p>';
 
@@ -1093,6 +1095,7 @@
         saveCatalogField("equipos", id, field, val, state.equipos);
       });
     });
+    bindCatalogDelete("catalog-equipos");
   }
 
   function renderCatalogoTiposFalla(){
@@ -1101,7 +1104,8 @@
         '<input type="text" value="' + esc(t.nombre) + '" data-falla-field="nombre" data-id="' + esc(t.id) + '">' +
         '<input type="number" value="' + (t.orden||0) + '" data-falla-field="orden" data-id="' + esc(t.id) + '" title="Orden">' +
         '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (t.activo!==false?'checked':'') + ' data-falla-field="activo" data-id="' + esc(t.id) + '"> Activo</label>' +
-        '<span class="note" style="font-size:11px;">' + esc(disciplinaLabel(t.disciplina)) + '</span></div>';
+        '<span class="note" style="font-size:11px;">' + esc(disciplinaLabel(t.disciplina)) + '</span>' +
+        '<button type="button" class="btn-small" data-del-catalog data-coll="tipos_falla" data-id="' + esc(t.id) + '">Eliminar</button></div>';
     }).join("");
     document.getElementById("catalog-tipos-falla").innerHTML = html || '<p class="empty-note">Sin tipos de falla.</p>';
     document.querySelectorAll("[data-falla-field]").forEach(function(el){
@@ -1111,6 +1115,7 @@
         saveCatalogField("tipos_falla", id, field, val, state.tiposFalla);
       });
     });
+    bindCatalogDelete("catalog-tipos-falla");
   }
 
   // ---------- Dashboard ----------
@@ -1330,7 +1335,8 @@
         '<input type="text" value="' + esc(a.nombre) + '" data-area-field="nombre" data-id="' + esc(a.id) + '">' +
         '<input type="number" value="' + (a.orden||0) + '" data-area-field="orden" data-id="' + esc(a.id) + '" title="Orden">' +
         '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (a.activo!==false?'checked':'') + ' data-area-field="activo" data-id="' + esc(a.id) + '"> Activa</label>' +
-        '<span></span></div>';
+        '<span></span>' +
+        '<button type="button" class="btn-small" data-del-catalog data-coll="areas" data-id="' + esc(a.id) + '">Eliminar</button></div>';
     }).join("");
     document.getElementById("catalog-areas").innerHTML = areasHtml || '<p class="empty-note">Sin áreas.</p>';
 
@@ -1340,7 +1346,8 @@
         '<input type="text" value="' + esc(a.nombre) + '" data-act-field="nombre" data-id="' + esc(a.id) + '" title="' + esc(area ? area.nombre : "") + '">' +
         '<input type="number" value="' + (a.orden||0) + '" data-act-field="orden" data-id="' + esc(a.id) + '" title="Orden">' +
         '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (a.activo!==false?'checked':'') + ' data-act-field="activo" data-id="' + esc(a.id) + '"> Activa</label>' +
-        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span></div>';
+        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span>' +
+        '<button type="button" class="btn-small" data-del-catalog data-coll="actividades" data-id="' + esc(a.id) + '">Eliminar</button></div>';
     }).join("");
     document.getElementById("catalog-actividades").innerHTML = actsHtml || '<p class="empty-note">Sin actividades.</p>';
 
@@ -1363,9 +1370,28 @@
         saveCatalogField("actividades", id, field, val, state.actividades);
       });
     });
+    bindCatalogDelete("catalog-areas");
+    bindCatalogDelete("catalog-actividades");
 
     renderCatalogoEquipos();
     renderCatalogoTiposFalla();
+  }
+
+  function deleteCatalogItem(coll, id){
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    state.db.collection(coll).doc(id).delete()
+      .then(function(){ showToast("Eliminado del catálogo"); })
+      .catch(function(err){ showToast("Error al eliminar: " + err.code); });
+  }
+
+  function bindCatalogDelete(containerId){
+    document.getElementById(containerId).querySelectorAll("[data-del-catalog]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        armConfirm(btn, "¿Confirmar?", function(){
+          deleteCatalogItem(btn.getAttribute("data-coll"), btn.getAttribute("data-id"));
+        });
+      });
+    });
   }
 
   function saveCatalogField(coll, id, field, val, localArr){
@@ -1419,9 +1445,7 @@
       setStatus(true);
 
       unsubAreas = db.collection("areas").onSnapshot(function(snap){
-        if (!snap.empty){
-          state.areas = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
-        }
+        state.areas = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         renderRegistro();
         renderNovedades();
         if (state.view === "catalogo") renderCatalogo();
@@ -1429,26 +1453,20 @@
       }, function(err){ showToast("Error catálogo áreas: " + err.code); });
 
       unsubAct = db.collection("actividades").onSnapshot(function(snap){
-        if (!snap.empty){
-          state.actividades = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
-        }
+        state.actividades = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         renderRegistro();
         if (state.view === "catalogo") renderCatalogo();
         if (state.view === "dashboard") renderDashboard();
       }, function(err){ showToast("Error catálogo actividades: " + err.code); });
 
       unsubEquipos = db.collection("equipos").onSnapshot(function(snap){
-        if (!snap.empty){
-          state.equipos = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
-        }
+        state.equipos = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         renderNovedades();
         if (state.view === "catalogo") renderCatalogo();
       }, function(err){ showToast("Error catálogo equipos: " + err.code); });
 
       unsubTiposFalla = db.collection("tipos_falla").onSnapshot(function(snap){
-        if (!snap.empty){
-          state.tiposFalla = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
-        }
+        state.tiposFalla = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         renderNovedades();
         if (state.view === "catalogo") renderCatalogo();
       }, function(err){ showToast("Error catálogo tipos de falla: " + err.code); });
