@@ -241,15 +241,20 @@
     display:grid; grid-template-columns:1fr 70px 85px 130px 72px; gap:10px; align-items:center;
     padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;
   }
+  .equipo-title{
+    display:flex; align-items:baseline; gap:8px; margin:14px 0 8px;
+    font-size:12.5px; font-weight:600; color:var(--text-muted);
+    text-transform:uppercase; letter-spacing:.04em;
+  }
   .catalog-row-var{
-    display:grid; grid-template-columns:1fr 64px 62px 62px 56px 78px 108px 72px; gap:8px; align-items:center;
+    display:grid; grid-template-columns:1fr 62px 60px 60px 52px 76px 150px 72px; gap:8px; align-items:center;
     padding:9px 0; border-bottom:1px solid var(--border); font-size:13.5px;
   }
   .catalog-row-var input[type="text"]{width:100%;}
   .catalog-row-var input[type="number"]{width:100%; padding:7px 8px; border:1px solid var(--border); border-radius:6px; background:var(--surface-2); color:var(--text); font-family:inherit; font-size:13px;}
   .catalog-row-var.inactive{opacity:.5;}
   .catalog-head{
-    display:grid; grid-template-columns:1fr 64px 62px 62px 56px 78px 108px 72px; gap:8px;
+    display:grid; grid-template-columns:1fr 62px 60px 60px 52px 76px 150px 72px; gap:8px;
     font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-muted);
     font-weight:600; padding-bottom:6px; border-bottom:1px solid var(--border);
   }
@@ -534,13 +539,14 @@
 
     <div class="catalog-section">
       <h2 style="font-size:15px; margin-bottom:10px;">Variables de proceso</h2>
-      <p class="note" style="margin-bottom:10px;">Variables que se controlan por turno en cada área (ej: % Sólido, +65 #, Presión batería 1). El rango mín/máx es opcional: si lo defines, la app marca en rojo los valores fuera de rango.</p>
+      <p class="note" style="margin-bottom:10px;">Variables que se controlan por turno, definidas por área y equipo (ej: Molino de Bolas 1 → % Sólido, +65 #, Presión batería 1). Si la variable es de toda el área y no de un equipo puntual, deja el equipo en "Toda el área". El rango mín/máx es opcional: si lo defines, la app marca en rojo los valores fuera de rango.</p>
       <div class="catalog-head">
-        <span>Variable</span><span>Unidad</span><span>Mín</span><span>Máx</span><span>Orden</span><span>Activa</span><span>Área</span><span></span>
+        <span>Variable</span><span>Unidad</span><span>Mín</span><span>Máx</span><span>Orden</span><span>Activa</span><span>Área · Equipo</span><span></span>
       </div>
       <div id="catalog-variables"></div>
       <div class="add-form">
         <div class="field"><label for="new-var-area">Área</label><select id="new-var-area"></select></div>
+        <div class="field"><label for="new-var-equipo">Equipo</label><select id="new-var-equipo"></select></div>
         <div class="field"><label for="new-var-nombre">Nueva variable</label><input type="text" id="new-var-nombre" placeholder="Ej: % Sólido"></div>
         <div class="field" style="min-width:90px; flex:0;"><label for="new-var-unidad">Unidad</label><input type="text" id="new-var-unidad" placeholder="%" style="width:80px;"></div>
         <button class="btn" id="btn-add-variable">Agregar variable</button>
@@ -978,7 +984,7 @@
     var base = state.medDoc ? JSON.parse(JSON.stringify(state.medDoc)) : { fecha: state.varFecha, turno: state.varTurno, valores: {} };
     base.valores = base.valores || {};
     var cur = base.valores[varId] || {};
-    base.valores[varId] = Object.assign({}, cur, patch, { areaId: v.areaId, updatedAt: new Date().toISOString() });
+    base.valores[varId] = Object.assign({}, cur, patch, { areaId: v.areaId, equipoId: v.equipoId || "", updatedAt: new Date().toISOString() });
     state.medDoc = base;
     renderVariablesList();
     persistMediciones(base);
@@ -1017,31 +1023,56 @@
 
     var total = 0, hechas = 0, fuera = 0;
     var html = "";
+
+    function renderVarCard(v){
+      total++;
+      var d = valorActual(v.id);
+      var valor = (d.valor === null || d.valor === undefined) ? null : Number(d.valor);
+      if (valor !== null) hechas++;
+      var mal = fueraDeRango(v, valor);
+      if (mal) fuera++;
+      var rango = "";
+      if (v.min !== null && v.min !== undefined && v.min !== "" && v.max !== null && v.max !== undefined && v.max !== "") rango = "Rango " + v.min + " – " + v.max;
+      else if (v.min !== null && v.min !== undefined && v.min !== "") rango = "Mín " + v.min;
+      else if (v.max !== null && v.max !== undefined && v.max !== "") rango = "Máx " + v.max;
+      return '<div class="var-card' + (mal ? ' fuera' : '') + '">' +
+        '<div class="var-name"><label for="val-' + esc(v.id) + '">' + esc(v.nombre) + '</label>' +
+        (rango ? '<div class="var-target">' + esc(rango) + (v.unidad ? " " + esc(v.unidad) : "") + '</div>' : '') + '</div>' +
+        (mal ? '<span class="estado-tag no_realizado">Fuera de rango</span>' : '') +
+        '<input type="number" step="any" class="var-input" id="val-' + esc(v.id) + '" value="' + (valor === null ? "" : valor) + '" data-var-valor data-id="' + esc(v.id) + '" placeholder="—">' +
+        '<span class="var-unidad">' + esc(v.unidad || "") + '</span>' +
+        '<input type="text" class="var-comentario" placeholder="Observación (opcional)" value="' + esc(d.comentario || "") + '" data-var-comentario data-id="' + esc(v.id) + '" style="flex:1; min-width:160px;">' +
+        '</div>';
+    }
+    function porOrden(a,b){ return (a.orden||0)-(b.orden||0); }
+
     areas.forEach(function(area){
-      var areaVars = vars.filter(function(v){ return v.areaId === area.id; }).sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      var areaVars = vars.filter(function(v){ return v.areaId === area.id; });
       if (!areaVars.length) return;
       html += '<div class="area-group"><div class="area-title">' + esc(area.nombre) +
         '<span class="count">' + areaVars.length + ' variable' + (areaVars.length===1?'':'s') + '</span></div>';
+
+      var sinEquipo = areaVars.filter(function(v){ return !v.equipoId; }).sort(porOrden);
+      if (sinEquipo.length){
+        if (areaVars.length !== sinEquipo.length) html += '<div class="equipo-title">Toda el área</div>';
+        html += sinEquipo.map(renderVarCard).join("");
+      }
+
+      var grupos = [];
       areaVars.forEach(function(v){
-        total++;
-        var d = valorActual(v.id);
-        var valor = (d.valor === null || d.valor === undefined) ? null : Number(d.valor);
-        if (valor !== null) hechas++;
-        var mal = fueraDeRango(v, valor);
-        if (mal) fuera++;
-        var rango = "";
-        if (v.min !== null && v.min !== undefined && v.min !== "" && v.max !== null && v.max !== undefined && v.max !== "") rango = "Rango " + v.min + " – " + v.max;
-        else if (v.min !== null && v.min !== undefined && v.min !== "") rango = "Mín " + v.min;
-        else if (v.max !== null && v.max !== undefined && v.max !== "") rango = "Máx " + v.max;
-        html += '<div class="var-card' + (mal ? ' fuera' : '') + '">' +
-          '<div class="var-name"><label for="val-' + esc(v.id) + '">' + esc(v.nombre) + '</label>' +
-          (rango ? '<div class="var-target">' + esc(rango) + (v.unidad ? " " + esc(v.unidad) : "") + '</div>' : '') + '</div>' +
-          (mal ? '<span class="estado-tag no_realizado">Fuera de rango</span>' : '') +
-          '<input type="number" step="any" class="var-input" id="val-' + esc(v.id) + '" value="' + (valor === null ? "" : valor) + '" data-var-valor data-id="' + esc(v.id) + '" placeholder="—">' +
-          '<span class="var-unidad">' + esc(v.unidad || "") + '</span>' +
-          '<input type="text" class="var-comentario" placeholder="Observación (opcional)" value="' + esc(d.comentario || "") + '" data-var-comentario data-id="' + esc(v.id) + '" style="flex:1; min-width:160px;">' +
-          '</div>';
+        if (!v.equipoId) return;
+        var g = grupos.filter(function(x){ return x.equipoId === v.equipoId; })[0];
+        if (!g){
+          var eq = equipoById(v.equipoId);
+          g = { equipoId: v.equipoId, nombre: eq ? eq.nombre : "Equipo eliminado del catálogo", orden: eq ? (eq.orden||0) : 9999, vars: [] };
+          grupos.push(g);
+        }
+        g.vars.push(v);
       });
+      grupos.sort(porOrden).forEach(function(g){
+        html += '<div class="equipo-title">' + esc(g.nombre) + '</div>' + g.vars.sort(porOrden).map(renderVarCard).join("");
+      });
+
       html += '</div>';
     });
     if (!html) html = '<p class="empty-note">No hay variables definidas. Ve a Catálogo → "Variables de proceso" para agregarlas.</p>';
@@ -1070,7 +1101,9 @@
     var opts = activeVariables().sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
     sel.innerHTML = opts.length ? opts.map(function(v){
       var area = areaById(v.areaId);
-      return '<option value="' + esc(v.id) + '">' + esc(v.nombre) + (area ? " — " + esc(area.nombre) : "") + '</option>';
+      var eq = v.equipoId ? equipoById(v.equipoId) : null;
+      var contexto = [area ? area.nombre : null, eq ? eq.nombre : null].filter(Boolean).join(" · ");
+      return '<option value="' + esc(v.id) + '">' + esc(v.nombre) + (contexto ? " — " + esc(contexto) : "") + '</option>';
     }).join("") : '<option value="">Sin variables definidas</option>';
     if (opts.some(function(v){ return v.id === current; })) sel.value = current;
     state.varTrendId = sel.value;
@@ -1150,6 +1183,7 @@
       '<path d="' + path + '" fill="none" stroke="var(--accent)" stroke-width="2"/>' +
       dots + etiquetas + '</svg>' +
       '<p class="note" style="margin-top:8px;">' + esc(v.nombre) + (v.unidad ? " (" + esc(v.unidad) + ")" : "") +
+      (v.equipoId && equipoById(v.equipoId) ? " · " + esc(equipoById(v.equipoId).nombre) : "") +
       (min !== null || max !== null ? ' · línea roja punteada = límite de rango' : ' · sin rango definido en el Catálogo') + '</p>';
   }
 
@@ -1159,14 +1193,30 @@
     renderVarTrend();
   }
 
+  document.getElementById("new-var-area").addEventListener("change", function(){
+    populateNewVarEquipoSelect();
+  });
+
+  function populateNewVarEquipoSelect(){
+    var sel = document.getElementById("new-var-equipo");
+    var current = sel.value;
+    var areaId = document.getElementById("new-var-area").value;
+    var opts = state.equipos.filter(function(e){ return e.activo !== false && e.areaId === areaId; })
+      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+    sel.innerHTML = '<option value="">— Toda el área —</option>' +
+      opts.map(function(e){ return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join("");
+    if (opts.some(function(e){ return e.id === current; })) sel.value = current;
+  }
+
   document.getElementById("btn-add-variable").addEventListener("click", function(){
     var nombreInput = document.getElementById("new-var-nombre");
     var unidadInput = document.getElementById("new-var-unidad");
     var areaId = document.getElementById("new-var-area").value;
+    var equipoId = document.getElementById("new-var-equipo").value;
     var nombre = nombreInput.value.trim();
     if (!nombre || !areaId) return;
     var orden = state.variables.length ? Math.max.apply(null, state.variables.map(function(v){ return v.orden||0; })) + 1 : 1;
-    var data = { areaId: areaId, nombre: nombre, unidad: unidadInput.value.trim(), min: null, max: null, orden: orden, activo: true };
+    var data = { areaId: areaId, equipoId: equipoId, nombre: nombre, unidad: unidadInput.value.trim(), min: null, max: null, orden: orden, activo: true };
     if (!state.db){ showToast("No disponible sin conexión"); return; }
     state.db.collection("variables").add(data).then(function(){
       nombreInput.value = ""; unidadInput.value = "";
@@ -1184,13 +1234,17 @@
         '<input type="number" step="any" value="' + (v.max === null || v.max === undefined ? "" : v.max) + '" data-var-field="max" data-id="' + esc(v.id) + '">' +
         '<input type="number" value="' + (v.orden||0) + '" data-var-field="orden" data-id="' + esc(v.id) + '">' +
         '<label style="display:flex;align-items:center;gap:5px;font-size:12.5px;"><input type="checkbox" ' + (v.activo!==false?'checked':'') + ' data-var-field="activo" data-id="' + esc(v.id) + '"> Activa</label>' +
-        '<span class="note" style="font-size:11px;">' + esc(area ? area.nombre : "—") + '</span>' +
+        '<span class="note" style="font-size:11px; line-height:1.35;">' + esc(area ? area.nombre : "—") +
+        '<br><strong>' + esc(v.equipoId ? ((equipoById(v.equipoId) || {}).nombre || "equipo eliminado") : "Toda el área") + '</strong></span>' +
         '<button type="button" class="btn-small" data-del-catalog data-coll="variables" data-id="' + esc(v.id) + '">Eliminar</button></div>';
     }).join("");
     document.getElementById("catalog-variables").innerHTML = html || '<p class="empty-note">Sin variables definidas.</p>';
 
     var sel = document.getElementById("new-var-area");
+    var curArea = sel.value;
     sel.innerHTML = activeAreas().map(function(a){ return '<option value="' + esc(a.id) + '">' + esc(a.nombre) + '</option>'; }).join("");
+    if (curArea && activeAreas().some(function(a){ return a.id === curArea; })) sel.value = curArea;
+    populateNewVarEquipoSelect();
 
     document.querySelectorAll("[data-var-field]").forEach(function(el){
       el.addEventListener("change", function(){
@@ -1900,6 +1954,7 @@
       unsubEquipos = db.collection("equipos").onSnapshot(function(snap){
         state.equipos = snap.docs.map(function(d){ return Object.assign({id:d.id}, d.data()); });
         renderNovedades();
+        renderVariables();
         if (state.view === "catalogo") renderCatalogo();
       }, function(err){ showToast("Error catálogo equipos: " + err.code); });
 
