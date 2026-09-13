@@ -863,7 +863,7 @@
     showToast._t = setTimeout(function(){ t.hidden = true; }, 2200);
   }
 
-  function activeAreas(){ return state.areas.filter(function(a){ return a.activo !== false; }).sort(function(a,b){ return (a.orden||0)-(b.orden||0); }); }
+  function activeAreas(){ return state.areas.filter(function(a){ return a.activo !== false; }).sort(porOrdenNombre); }
   function activeActividades(){ return state.actividades.filter(function(a){ return a.activo !== false; }); }
   function areaById(id){ return state.areas.filter(function(a){ return a.id === id; })[0]; }
   function actById(id){ return state.actividades.filter(function(a){ return a.id === id; })[0]; }
@@ -882,6 +882,11 @@
     return false;
   }
   function disciplinaLabel(key){ return DISCIPLINAS[key] || key; }
+  function porOrdenNombre(a, b){
+    var d = (a.orden || 0) - (b.orden || 0);
+    if (d !== 0) return d;
+    return String(a.nombre || "").localeCompare(String(b.nombre || ""), "es", { numeric: true, sensitivity: "base" });
+  }
   function armConfirm(btn, label, onConfirm){
     if (!btn.classList.contains("confirming")){
       btn.dataset.orig = btn.textContent;
@@ -1055,7 +1060,7 @@
     var total = 0, done = 0;
     var html = "";
     areas.forEach(function(area){
-      var areaActs = acts.filter(function(a){ return a.areaId === area.id; }).sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      var areaActs = acts.filter(function(a){ return a.areaId === area.id; }).sort(porOrdenNombre);
       if (!areaActs.length) return;
       html += '<div class="area-group"><div class="area-title">' + esc(area.nombre) +
         '<span class="count">' + areaActs.length + ' actividad' + (areaActs.length===1?'':'es') + '</span></div>';
@@ -1338,7 +1343,7 @@
         '<input type="text" class="var-comentario" placeholder="Observación (opcional)" value="' + esc(d.comentario || "") + '" data-var-comentario data-id="' + esc(v.id) + '" style="flex:1; min-width:160px;">' +
         '</div>';
     }
-    function porOrden(a,b){ return (a.orden||0)-(b.orden||0); }
+    var porOrden = porOrdenNombre;
 
     areas.forEach(function(area){
       var areaVars = vars.filter(function(v){ return v.areaId === area.id; });
@@ -1397,7 +1402,7 @@
   function populateVarTrendSelect(){
     var sel = document.getElementById("var-trend-sel");
     var current = sel.value || state.varTrendId;
-    var opts = activeVariables().sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+    var opts = activeVariables().sort(porOrdenNombre);
     sel.innerHTML = opts.length ? opts.map(function(v){
       var area = areaById(v.areaId);
       var eq = v.equipoId ? equipoById(v.equipoId) : null;
@@ -1501,7 +1506,7 @@
     var current = sel.value;
     var areaId = document.getElementById("new-var-area").value;
     var opts = state.equipos.filter(function(e){ return e.activo !== false && e.areaId === areaId; })
-      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      .sort(porOrdenNombre);
     sel.innerHTML = '<option value="">— Toda el área —</option>' +
       opts.map(function(e){ return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join("");
     if (opts.some(function(e){ return e.id === current; })) sel.value = current;
@@ -1524,7 +1529,7 @@
   });
 
   function renderCatalogoVariables(){
-    var html = state.variables.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(v){
+    var html = state.variables.slice().sort(porOrdenNombre).map(function(v){
       var area = areaById(v.areaId);
       return '<div class="catalog-row-var' + (v.activo === false ? ' inactive' : '') + '">' +
         '<input type="text" value="' + esc(v.nombre) + '" data-var-field="nombre" data-id="' + esc(v.id) + '">' +
@@ -1604,7 +1609,7 @@
     var current = sel.value;
     var areaId = document.getElementById("nov-area").value;
     var opts = state.equipos.filter(function(e){ return e.activo !== false && e.areaId === areaId; })
-      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      .sort(porOrdenNombre);
     sel.innerHTML = opts.length ? opts.map(function(e){ return '<option value="' + esc(e.id) + '">' + esc(e.nombre) + '</option>'; }).join("")
       : '<option value="">Sin equipos en esta área — agrégalos en Catálogo</option>';
     if (opts.some(function(e){ return e.id === current; })) sel.value = current;
@@ -1612,7 +1617,7 @@
   function populateNovTipoFallaSelect(){
     var sel = document.getElementById("nov-tipo-falla");
     var opts = state.tiposFalla.filter(function(t){ return t.activo !== false && t.disciplina === state.novDisciplina; })
-      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      .sort(porOrdenNombre);
     sel.innerHTML = opts.length ? opts.map(function(t){ return '<option value="' + esc(t.id) + '">' + esc(t.nombre) + '</option>'; }).join("")
       : '<option value="">Sin tipos definidos para esta disciplina</option>';
   }
@@ -1706,7 +1711,7 @@
   }
   function opcionesEquipos(areaId, sel){
     var opts = state.equipos.filter(function(e){ return e.activo !== false && e.areaId === areaId; })
-      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      .sort(porOrdenNombre);
     if (sel && !opts.some(function(e){ return e.id === sel; })){
       var actual = equipoById(sel);
       if (actual) opts = [actual].concat(opts);
@@ -1717,7 +1722,7 @@
   }
   function opcionesTiposFalla(disciplina, sel){
     var opts = state.tiposFalla.filter(function(t){ return t.activo !== false && t.disciplina === disciplina; })
-      .sort(function(a,b){ return (a.orden||0)-(b.orden||0); });
+      .sort(porOrdenNombre);
     if (sel && !opts.some(function(t){ return t.id === sel; })){
       var actual = tipoFallaById(sel);
       if (actual) opts = [actual].concat(opts);
@@ -1973,7 +1978,7 @@
   });
 
   function renderCatalogoEquipos(){
-    var html = state.equipos.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(e){
+    var html = state.equipos.slice().sort(porOrdenNombre).map(function(e){
       var area = areaById(e.areaId);
       return '<div class="catalog-row' + (e.activo === false ? ' inactive' : '') + '">' +
         '<input type="text" value="' + esc(e.nombre) + '" data-equipo-field="nombre" data-id="' + esc(e.id) + '">' +
@@ -1998,7 +2003,7 @@
   }
 
   function renderCatalogoTiposFalla(){
-    var html = state.tiposFalla.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(t){
+    var html = state.tiposFalla.slice().sort(porOrdenNombre).map(function(t){
       return '<div class="catalog-row' + (t.activo === false ? ' inactive' : '') + '">' +
         '<input type="text" value="' + esc(t.nombre) + '" data-falla-field="nombre" data-id="' + esc(t.id) + '">' +
         '<input type="number" value="' + (t.orden||0) + '" data-falla-field="orden" data-id="' + esc(t.id) + '" title="Orden">' +
@@ -2230,7 +2235,7 @@
 
   // ---------- Catálogo ----------
   function renderCatalogo(){
-    var areasHtml = state.areas.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(a){
+    var areasHtml = state.areas.slice().sort(porOrdenNombre).map(function(a){
       return '<div class="catalog-row' + (a.activo === false ? ' inactive' : '') + '">' +
         '<input type="text" value="' + esc(a.nombre) + '" data-area-field="nombre" data-id="' + esc(a.id) + '">' +
         '<input type="number" value="' + (a.orden||0) + '" data-area-field="orden" data-id="' + esc(a.id) + '" title="Orden">' +
@@ -2240,7 +2245,7 @@
     }).join("");
     document.getElementById("catalog-areas").innerHTML = areasHtml || '<p class="empty-note">Sin áreas.</p>';
 
-    var actsHtml = state.actividades.slice().sort(function(a,b){ return (a.orden||0)-(b.orden||0); }).map(function(a){
+    var actsHtml = state.actividades.slice().sort(porOrdenNombre).map(function(a){
       var area = areaById(a.areaId);
       return '<div class="catalog-row' + (a.activo === false ? ' inactive' : '') + '">' +
         '<input type="text" value="' + esc(a.nombre) + '" data-act-field="nombre" data-id="' + esc(a.id) + '" title="' + esc(area ? area.nombre : "") + '">' +
