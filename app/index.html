@@ -124,9 +124,20 @@
   }
   .field{display:flex; flex-direction:column; gap:5px;}
   .field label{font-size:11.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
-  .fecha-cap{
-    font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
-    color:var(--accent); text-transform:none; letter-spacing:0; margin-left:4px;
+  .fecha-wrap{position:relative; display:inline-flex; align-items:center;}
+  .fecha-txt{
+    font-family:"IBM Plex Mono",monospace !important; width:132px; padding-right:32px !important;
+    letter-spacing:.02em;
+  }
+  .fecha-btn{
+    position:absolute; right:5px; top:50%; transform:translateY(-50%);
+    border:none; background:transparent; cursor:pointer; padding:4px; line-height:0;
+    color:var(--text-muted);
+  }
+  .fecha-btn:hover{color:var(--accent);}
+  .fecha-nativa{
+    position:absolute; right:8px; bottom:2px; width:1px; height:1px;
+    opacity:0; pointer-events:none; border:none; padding:0; margin:0; overflow:hidden;
   }
   input[type="date"],input[type="text"],textarea,select{
     font-family:inherit; font-size:14px; color:var(--text); background:var(--surface-2);
@@ -327,7 +338,7 @@
     </div>
     <div class="toolbar">
       <div class="field">
-        <label for="input-fecha">Fecha <span class="fecha-cap" id="cap-input-fecha"></span></label>
+        <label for="input-fecha">Fecha</label>
         <input type="date" id="input-fecha">
       </div>
       <div class="field">
@@ -374,7 +385,7 @@
   <section id="view-variables" class="view" hidden>
     <div class="toolbar">
       <div class="field">
-        <label for="var-fecha">Fecha <span class="fecha-cap" id="cap-var-fecha"></span></label>
+        <label for="var-fecha">Fecha</label>
         <input type="date" id="var-fecha">
       </div>
       <div class="field">
@@ -464,7 +475,7 @@
     <div class="panel">
       <h2>Reportar novedad</h2>
       <div class="add-form" style="margin-top:0;">
-        <div class="field"><label for="nov-fecha">Fecha <span class="fecha-cap" id="cap-nov-fecha"></span></label><input type="date" id="nov-fecha"></div>
+        <div class="field"><label for="nov-fecha">Fecha</label><input type="date" id="nov-fecha"></div>
         <div class="field"><label>Turno</label>
           <div class="seg" role="group" aria-label="Turno de la novedad">
             <button type="button" data-nov-turno="A" aria-pressed="true">Turno A</button>
@@ -759,10 +770,92 @@
     return pad(d.getDate()) + "-" + pad(d.getMonth()+1) + "-" + d.getFullYear() + " " +
       pad(d.getHours()) + ":" + pad(d.getMinutes());
   }
-  function syncCaptionFecha(inputId, capId){
-    var input = document.getElementById(inputId), cap = document.getElementById(capId);
-    if (!input || !cap) return;
-    cap.textContent = input.value ? fechaLatam(input.value) : "";
+  function parseFechaLatam(str){
+    if (!str || !String(str).trim()) return "";
+    var s = String(str).trim().replace(/[\/\.\s]+/g, "-");
+    var m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+    if (!m){
+      var solo = String(str).replace(/\D/g, "");
+      if (solo.length === 8) m = [null, solo.slice(0,2), solo.slice(2,4), solo.slice(4,8)];
+      else return null;
+    }
+    var dd = Number(m[1]), mm = Number(m[2]), aa = Number(m[3]);
+    if (aa < 100) aa += 2000;
+    var d = new Date(aa, mm - 1, dd);
+    if (d.getFullYear() !== aa || d.getMonth() !== mm - 1 || d.getDate() !== dd) return null;
+    return aa + "-" + pad(mm) + "-" + pad(dd);
+  }
+
+  var ICONO_CALENDARIO = '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">' +
+    '<rect x="2" y="3.2" width="12" height="11" rx="1.6"/><path d="M2 6.6h12M5.4 1.8v2.6M10.6 1.8v2.6"/></svg>';
+
+  function upgradeFecha(nativo){
+    if (!nativo || nativo.dataset.upgraded) return;
+    nativo.dataset.upgraded = "1";
+
+    var wrap = document.createElement("div");
+    wrap.className = "fecha-wrap";
+    nativo.parentNode.insertBefore(wrap, nativo);
+
+    var txt = document.createElement("input");
+    txt.type = "text";
+    txt.className = "fecha-txt";
+    txt.placeholder = "dd-mm-aaaa";
+    txt.maxLength = 10;
+    txt.setAttribute("inputmode", "numeric");
+    if (nativo.id){
+      txt.id = nativo.id + "-txt";
+      var lbl = document.querySelector('label[for="' + nativo.id + '"]');
+      if (lbl) lbl.setAttribute("for", txt.id);
+    }
+
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "fecha-btn";
+    btn.setAttribute("aria-label", "Abrir calendario");
+    btn.innerHTML = ICONO_CALENDARIO;
+
+    wrap.appendChild(txt);
+    wrap.appendChild(btn);
+    wrap.appendChild(nativo);
+    nativo.classList.add("fecha-nativa");
+    nativo.setAttribute("tabindex", "-1");
+
+    function pintar(){ txt.value = fechaLatam(nativo.value); }
+    nativo._pintar = pintar;
+    pintar();
+
+    btn.addEventListener("click", function(){
+      if (typeof nativo.showPicker === "function"){
+        try { nativo.showPicker(); return; } catch (e) {}
+      }
+      nativo.classList.remove("fecha-nativa");
+      nativo.focus();
+      nativo.click();
+      setTimeout(function(){ nativo.classList.add("fecha-nativa"); }, 200);
+    });
+
+    nativo.addEventListener("change", pintar);
+
+    txt.addEventListener("blur", function(){
+      var iso = parseFechaLatam(txt.value);
+      if (iso === null){ showToast("Fecha inválida — usa dd-mm-aaaa"); pintar(); return; }
+      if (iso !== nativo.value){
+        nativo.value = iso;
+        nativo.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      pintar();
+    });
+    txt.addEventListener("keydown", function(e){ if (e.key === "Enter"){ e.preventDefault(); txt.blur(); } });
+  }
+
+  function upgradeFechas(){
+    document.querySelectorAll('input[type="date"]').forEach(upgradeFecha);
+  }
+  function pintarFechas(){
+    document.querySelectorAll('input[type="date"]').forEach(function(i){
+      if (i._pintar) i._pintar();
+    });
   }
   function esc(s){
     return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
@@ -832,7 +925,6 @@
   inputFecha.value = state.fecha;
   inputFecha.addEventListener("change", function(){
     state.fecha = inputFecha.value || todayStr();
-    syncCaptionFecha("input-fecha", "cap-input-fecha");
     subscribeShift();
   });
   document.querySelectorAll("[data-turno]").forEach(function(btn){
@@ -939,6 +1031,7 @@
   moverShiftBtn.addEventListener("click", function(){
     document.getElementById("mov-fecha").value = state.fecha;
     document.getElementById("mov-turno").value = state.turno;
+    pintarFechas();
     conflictoShift.hidden = true;
     panelMoverShift.hidden = !panelMoverShift.hidden;
   });
@@ -990,6 +1083,7 @@
     deleteBtn.textContent = "Eliminar registro del turno";
     document.getElementById("btn-mover-shift").hidden = !state.shiftDoc;
     if (!state.shiftDoc) document.getElementById("panel-mover-shift").hidden = true;
+    pintarFechas();
 
     list.querySelectorAll("[data-act-estado]").forEach(function(btn){
       btn.addEventListener("click", function(){
@@ -1089,7 +1183,6 @@
 
   varFechaInput.addEventListener("change", function(){
     state.varFecha = varFechaInput.value || todayStr();
-    syncCaptionFecha("var-fecha", "cap-var-fecha");
     subscribeMediciones();
   });
   document.querySelectorAll("[data-var-turno]").forEach(function(btn){
@@ -1142,8 +1235,7 @@
         state.varFecha = destFecha;
         state.varTurno = destTurno;
         varFechaInput.value = destFecha;
-        syncCaptionFecha("var-fecha", "cap-var-fecha");
-        document.querySelectorAll("[data-var-turno]").forEach(function(b){
+            document.querySelectorAll("[data-var-turno]").forEach(function(b){
           b.setAttribute("aria-pressed", b.getAttribute("data-var-turno") === destTurno ? "true" : "false");
         });
         subscribeMediciones();
@@ -1154,6 +1246,7 @@
   document.getElementById("btn-mover-var").addEventListener("click", function(){
     document.getElementById("mov-var-fecha").value = state.varFecha;
     document.getElementById("mov-var-turno").value = state.varTurno;
+    pintarFechas();
     conflictoVar.hidden = true;
     panelMoverVar.hidden = !panelMoverVar.hidden;
   });
@@ -1291,6 +1384,7 @@
     document.getElementById("btn-mover-var").hidden = !hayMediciones;
     if (!hayMediciones) document.getElementById("panel-mover-var").hidden = true;
 
+    pintarFechas();
     var chipFuera = document.getElementById("var-chip-fuera");
     chipFuera.hidden = fuera === 0;
     chipFuera.innerHTML = '<strong style="color:var(--bad);">' + fuera + '</strong> fuera de rango';
@@ -1475,7 +1569,6 @@
   var novFechaInput = document.getElementById("nov-fecha");
   var novResponsableInput = document.getElementById("nov-responsable");
   novFechaInput.value = todayStr();
-  novFechaInput.addEventListener("change", function(){ syncCaptionFecha("nov-fecha", "cap-nov-fecha"); });
 
   document.querySelectorAll("[data-nov-turno]").forEach(function(btn){
     btn.addEventListener("click", function(){
@@ -1828,6 +1921,8 @@
         });
       }
     }
+    upgradeFechas();
+    pintarFechas();
     renderNovedadesKpis();
   }
 
@@ -1937,6 +2032,7 @@
     state.dashStart = days === "all" ? addDays(state.dashEnd, -730) : addDays(state.dashEnd, -(days-1));
     dashStartInput.value = state.dashStart;
     dashEndInput.value = state.dashEnd;
+    pintarFechas();
     subscribeRange();
   }
   document.querySelectorAll("[data-range]").forEach(function(btn){
@@ -2056,7 +2152,6 @@
     state.fecha = fecha;
     state.turno = turno;
     inputFecha.value = fecha;
-    syncCaptionFecha("input-fecha", "cap-input-fecha");
     document.querySelectorAll("[data-turno]").forEach(function(b){
       b.setAttribute("aria-pressed", b.getAttribute("data-turno") === turno ? "true" : "false");
     });
@@ -2242,9 +2337,7 @@
 
   // ---------- Boot ----------
   try { document.documentElement.lang = "es-CL"; } catch (e) {}
-  syncCaptionFecha("input-fecha", "cap-input-fecha");
-  syncCaptionFecha("var-fecha", "cap-var-fecha");
-  syncCaptionFecha("nov-fecha", "cap-nov-fecha");
+  upgradeFechas();
 
   renderRegistro();
   renderNovedades();
