@@ -124,6 +124,10 @@
   }
   .field{display:flex; flex-direction:column; gap:5px;}
   .field label{font-size:11.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
+  .fecha-cap{
+    font-family:"IBM Plex Mono",monospace; font-size:11px; font-weight:600;
+    color:var(--accent); text-transform:none; letter-spacing:0; margin-left:4px;
+  }
   input[type="date"],input[type="text"],textarea,select{
     font-family:inherit; font-size:14px; color:var(--text); background:var(--surface-2);
     border:1px solid var(--border); border-radius:7px; padding:8px 10px;
@@ -323,7 +327,7 @@
     </div>
     <div class="toolbar">
       <div class="field">
-        <label for="input-fecha">Fecha</label>
+        <label for="input-fecha">Fecha <span class="fecha-cap" id="cap-input-fecha"></span></label>
         <input type="date" id="input-fecha">
       </div>
       <div class="field">
@@ -370,7 +374,7 @@
   <section id="view-variables" class="view" hidden>
     <div class="toolbar">
       <div class="field">
-        <label for="var-fecha">Fecha</label>
+        <label for="var-fecha">Fecha <span class="fecha-cap" id="cap-var-fecha"></span></label>
         <input type="date" id="var-fecha">
       </div>
       <div class="field">
@@ -460,7 +464,7 @@
     <div class="panel">
       <h2>Reportar novedad</h2>
       <div class="add-form" style="margin-top:0;">
-        <div class="field"><label for="nov-fecha">Fecha</label><input type="date" id="nov-fecha"></div>
+        <div class="field"><label for="nov-fecha">Fecha <span class="fecha-cap" id="cap-nov-fecha"></span></label><input type="date" id="nov-fecha"></div>
         <div class="field"><label>Turno</label>
           <div class="seg" role="group" aria-label="Turno de la novedad">
             <button type="button" data-nov-turno="A" aria-pressed="true">Turno A</button>
@@ -743,6 +747,23 @@
     return todayStr(d);
   }
   function shiftDocId(fecha, turno){ return fecha + "_" + turno; }
+  function fechaLatam(iso){
+    if (!iso || typeof iso !== "string") return "";
+    var p = iso.split("-");
+    return p.length === 3 ? p[2] + "-" + p[1] + "-" + p[0] : iso;
+  }
+  function fechaHoraLatam(isoDateTime){
+    if (!isoDateTime) return "";
+    var d = new Date(isoDateTime);
+    if (isNaN(d.getTime())) return "";
+    return pad(d.getDate()) + "-" + pad(d.getMonth()+1) + "-" + d.getFullYear() + " " +
+      pad(d.getHours()) + ":" + pad(d.getMinutes());
+  }
+  function syncCaptionFecha(inputId, capId){
+    var input = document.getElementById(inputId), cap = document.getElementById(capId);
+    if (!input || !cap) return;
+    cap.textContent = input.value ? fechaLatam(input.value) : "";
+  }
   function esc(s){
     return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
@@ -811,6 +832,7 @@
   inputFecha.value = state.fecha;
   inputFecha.addEventListener("change", function(){
     state.fecha = inputFecha.value || todayStr();
+    syncCaptionFecha("input-fecha", "cap-input-fecha");
     subscribeShift();
   });
   document.querySelectorAll("[data-turno]").forEach(function(btn){
@@ -883,8 +905,8 @@
       return destRef.set(resultado).then(function(){
         return state.db.collection(coll).doc(fromId).delete();
       }).then(function(){
-        showToast(modo === "combinar" ? "Combinado en " + destFecha + " turno " + destTurno
-                                      : "Movido a " + destFecha + " turno " + destTurno);
+        showToast(modo === "combinar" ? "Combinado en " + fechaLatam(destFecha) + " turno " + destTurno
+                                      : "Movido a " + fechaLatam(destFecha) + " turno " + destTurno);
         opts.onDone(destFecha, destTurno);
       });
     }).catch(function(err){ showToast("Error al mover: " + (err && err.code || "desconocido")); });
@@ -903,7 +925,7 @@
       modo: modo,
       onConflicto: function(destFecha, destTurno, cuantas){
         document.getElementById("mover-conflicto-detalle").textContent =
-          destFecha + " turno " + destTurno + ", con " + cuantas + " actividad" + (cuantas === 1 ? "" : "es") + " marcada" + (cuantas === 1 ? "" : "s");
+          fechaLatam(destFecha) + " turno " + destTurno + ", con " + cuantas + " actividad" + (cuantas === 1 ? "" : "es") + " marcada" + (cuantas === 1 ? "" : "s");
         conflictoShift.hidden = false;
       },
       onDone: function(destFecha, destTurno){
@@ -1005,7 +1027,7 @@
       comentario = '<div class="comentario-box"><label for="com-' + esc(act.id) + '">Comentario (opcional)</label>' +
         '<textarea id="com-' + esc(act.id) + '" data-act-comentario data-act-id="' + esc(act.id) + '" placeholder="Observaciones, novedades…">' + esc(data.comentario) + '</textarea></div>';
     }
-    var meta = data.updatedAt ? '<div class="row-meta">Actualizado ' + esc(new Date(data.updatedAt).toLocaleString("es-CL")) + '</div>' : '';
+    var meta = data.updatedAt ? '<div class="row-meta">Actualizado ' + esc(fechaHoraLatam(data.updatedAt)) + '</div>' : '';
     return '<div class="activity-card"><div class="activity-top"><div><div class="activity-name">' + esc(act.nombre) + '</div>' +
       (act.descripcion ? '<div class="activity-desc">' + esc(act.descripcion) + '</div>' : '') + '</div>' +
       '<div class="estado-seg" role="group" aria-label="Estado de ' + esc(act.nombre) + '">' + btns + '</div></div>' +
@@ -1067,6 +1089,7 @@
 
   varFechaInput.addEventListener("change", function(){
     state.varFecha = varFechaInput.value || todayStr();
+    syncCaptionFecha("var-fecha", "cap-var-fecha");
     subscribeMediciones();
   });
   document.querySelectorAll("[data-var-turno]").forEach(function(btn){
@@ -1110,7 +1133,7 @@
       modo: modo,
       onConflicto: function(destFecha, destTurno, cuantas){
         document.getElementById("mover-var-conflicto-detalle").textContent =
-          destFecha + " turno " + destTurno + ", con " + cuantas + " valor" + (cuantas === 1 ? "" : "es") + " registrado" + (cuantas === 1 ? "" : "s");
+          fechaLatam(destFecha) + " turno " + destTurno + ", con " + cuantas + " valor" + (cuantas === 1 ? "" : "es") + " registrado" + (cuantas === 1 ? "" : "s");
         conflictoVar.hidden = false;
       },
       onDone: function(destFecha, destTurno){
@@ -1119,6 +1142,7 @@
         state.varFecha = destFecha;
         state.varTurno = destTurno;
         varFechaInput.value = destFecha;
+        syncCaptionFecha("var-fecha", "cap-var-fecha");
         document.querySelectorAll("[data-var-turno]").forEach(function(b){
           b.setAttribute("aria-pressed", b.getAttribute("data-var-turno") === destTurno ? "true" : "false");
         });
@@ -1355,7 +1379,7 @@
     var dots = puntos.map(function(p, i){
       var mal = fueraDeRango(v, p.valor);
       return '<circle cx="' + xFor(i).toFixed(1) + '" cy="' + yFor(p.valor).toFixed(1) + '" r="3" fill="' +
-        (mal ? "var(--bad)" : "var(--accent)") + '"><title>' + esc(p.fecha) + " turno " + esc(p.turno) + ": " + p.valor + " " + esc(v.unidad || "") + '</title></circle>';
+        (mal ? "var(--bad)" : "var(--accent)") + '"><title>' + esc(fechaLatam(p.fecha)) + " turno " + esc(p.turno) + ": " + p.valor + " " + esc(v.unidad || "") + '</title></circle>';
     }).join("");
 
     var etiquetas = "";
@@ -1363,7 +1387,7 @@
     puntos.forEach(function(p, i){
       if (i % paso !== 0 && i !== n - 1) return;
       etiquetas += '<text x="' + xFor(i).toFixed(1) + '" y="' + (h - 10) + '" text-anchor="middle" font-size="9" fill="var(--text-muted)" font-family="IBM Plex Mono, monospace">' +
-        esc(p.fecha.slice(5)) + esc(p.turno) + '</text>';
+        esc(fechaLatam(p.fecha).slice(0,5)) + esc(p.turno) + '</text>';
     });
 
     cont.innerHTML = '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%; height:auto;" role="img" aria-label="Tendencia de ' + esc(v.nombre) + '">' +
@@ -1451,6 +1475,7 @@
   var novFechaInput = document.getElementById("nov-fecha");
   var novResponsableInput = document.getElementById("nov-responsable");
   novFechaInput.value = todayStr();
+  novFechaInput.addEventListener("change", function(){ syncCaptionFecha("nov-fecha", "cap-nov-fecha"); });
 
   document.querySelectorAll("[data-nov-turno]").forEach(function(btn){
     btn.addEventListener("click", function(){
@@ -1690,7 +1715,7 @@
     var plazo = diasDePlazo(n);
     var plazoTxt = "";
     if (n.fechaCompromiso){
-      if (finalizada) plazoTxt = '<span style="color:var(--text-muted);">Entrega comprometida ' + esc(n.fechaCompromiso) + '</span>';
+      if (finalizada) plazoTxt = '<span style="color:var(--text-muted);">Entrega comprometida ' + esc(fechaLatam(n.fechaCompromiso)) + '</span>';
       else if (plazo < 0) plazoTxt = '<span style="color:var(--bad); font-weight:600;">Atrasada ' + Math.abs(plazo) + " día" + (Math.abs(plazo) === 1 ? "" : "s") + '</span>';
       else if (plazo === 0) plazoTxt = '<span style="color:var(--warn); font-weight:600;">Vence hoy</span>';
       else plazoTxt = '<span style="color:var(--text-muted);">Faltan ' + plazo + " día" + (plazo === 1 ? "" : "s") + '</span>';
@@ -1720,8 +1745,8 @@
         '</select></div>' +
       '</div>';
 
-    var metaLine = "Reportada " + esc(n.fecha) + " turno " + esc(n.turno) + (n.reportadoPor ? " por " + esc(n.reportadoPor) : "") +
-      (finalizada && n.resolvedAt ? " · Finalizada " + esc(new Date(n.resolvedAt).toLocaleDateString("es-CL")) + (n.resueltoPor ? " por " + esc(n.resueltoPor) : "") : "");
+    var metaLine = "Reportada " + esc(fechaLatam(n.fecha)) + " turno " + esc(n.turno) + (n.reportadoPor ? " por " + esc(n.reportadoPor) : "") +
+      (finalizada && n.resolvedAt ? " · Finalizada " + esc(fechaLatam(n.resolvedAt.slice(0,10))) + (n.resueltoPor ? " por " + esc(n.resueltoPor) : "") : "");
 
     return '<div class="activity-card">' +
       '<div class="activity-top"><div><div class="activity-name">' + esc(n.equipo) +
@@ -1984,7 +2009,7 @@
     } else {
       turnos.sort(function(a,b){ return a.fecha === b.fecha ? (a.turno < b.turno ? 1 : -1) : (a.fecha < b.fecha ? 1 : -1); });
       tablaTurnos.innerHTML = turnos.map(function(t){
-        return '<tr><td class="mono">' + esc(t.fecha) + '</td><td>' + esc(t.turno) + '</td><td>' + esc(t.responsable || "—") +
+        return '<tr><td class="mono">' + esc(fechaLatam(t.fecha)) + '</td><td>' + esc(t.turno) + '</td><td>' + esc(t.responsable || "—") +
           '</td><td>' + t.counts.real + '</td><td>' + (t.counts.no ? '<span class="estado-tag no_realizado">' + t.counts.no + '</span>' : '0') +
           '</td><td>' + t.counts.pend + '</td><td><button type="button" class="btn-small" data-fix-fecha="' + esc(t.fecha) + '" data-fix-turno="' + esc(t.turno) + '">Abrir</button></td></tr>';
       }).join("");
@@ -2014,7 +2039,7 @@
     } else {
       noRealizadas.sort(function(a,b){ return a.fecha < b.fecha ? 1 : -1; });
       tbody.innerHTML = noRealizadas.map(function(r){
-        return '<tr><td class="mono">' + esc(r.fecha) + '</td><td>' + esc(r.turno) + '</td><td>' + esc(r.area) +
+        return '<tr><td class="mono">' + esc(fechaLatam(r.fecha)) + '</td><td>' + esc(r.turno) + '</td><td>' + esc(r.area) +
           '</td><td>' + esc(r.actividad) + '</td><td>' + esc(r.comentario || "—") + '</td><td>' + esc(r.responsable || "—") +
           '</td><td><button type="button" class="btn-small" data-fix-fecha="' + esc(r.fecha) + '" data-fix-turno="' + esc(r.turno) + '">Corregir</button></td></tr>';
       }).join("");
@@ -2031,6 +2056,7 @@
     state.fecha = fecha;
     state.turno = turno;
     inputFecha.value = fecha;
+    syncCaptionFecha("input-fecha", "cap-input-fecha");
     document.querySelectorAll("[data-turno]").forEach(function(b){
       b.setAttribute("aria-pressed", b.getAttribute("data-turno") === turno ? "true" : "false");
     });
@@ -2069,7 +2095,7 @@
     }).join("");
     var dots = coords.map(function(c, i){
       if (c.y === null) return "";
-      return '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="2.5" fill="var(--accent)"><title>' + esc(days[i]) + ": " + Math.round(pts[i]) + '%</title></circle>';
+      return '<circle cx="' + c.x.toFixed(1) + '" cy="' + c.y.toFixed(1) + '" r="2.5" fill="var(--accent)"><title>' + esc(fechaLatam(days[i])) + ": " + Math.round(pts[i]) + '%</title></circle>';
     }).join("");
     var svg = days.length ?
       '<svg viewBox="0 0 ' + w + ' ' + h + '" style="width:100%; height:auto; max-width:680px;" role="img" aria-label="Tendencia de cumplimiento diario">' +
@@ -2091,7 +2117,7 @@
         var entry = actEntries[actId];
         var areaName = (areaById(entry.areaId) || {}).nombre || "Sin área";
         rows.push([
-          doc.fecha, doc.turno, areaName,
+          fechaLatam(doc.fecha), doc.turno, areaName,
           (actById(actId) || {}).nombre || actId,
           entry.estado || "sin_registrar",
           entry.comentario || "",
@@ -2215,6 +2241,11 @@
   });
 
   // ---------- Boot ----------
+  try { document.documentElement.lang = "es-CL"; } catch (e) {}
+  syncCaptionFecha("input-fecha", "cap-input-fecha");
+  syncCaptionFecha("var-fecha", "cap-var-fecha");
+  syncCaptionFecha("nov-fecha", "cap-nov-fecha");
+
   renderRegistro();
   renderNovedades();
   renderVariables();
