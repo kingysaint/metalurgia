@@ -339,8 +339,23 @@
       </div>
       <div class="spacer"></div>
       <div class="progress-chip" id="progress-chip">0 / 0 registradas</div>
+      <button type="button" class="btn" id="btn-mover-shift" hidden>Mover a otra fecha/turno</button>
       <button type="button" class="btn danger" id="btn-delete-shift" hidden>Eliminar registro del turno</button>
     </div>
+
+    <div class="panel" id="panel-mover-shift" hidden>
+      <h2>Mover el registro de este turno</h2>
+      <div class="add-form" style="margin-top:0;">
+        <div class="field"><label for="mov-fecha">Nueva fecha</label><input type="date" id="mov-fecha"></div>
+        <div class="field"><label for="mov-turno">Nuevo turno</label>
+          <select id="mov-turno"><option value="A">Turno A</option><option value="C">Turno C</option></select>
+        </div>
+        <button class="btn primary" id="btn-mover-confirm">Mover registro</button>
+        <button class="btn" id="btn-mover-cancel">Cancelar</button>
+      </div>
+      <p class="note" style="margin-top:10px;">Traslada todo lo marcado en este turno (estados, comentarios y responsable) a la fecha y turno indicados. Solo se puede si el destino está vacío, para no pisar otro registro.</p>
+    </div>
+
     <div id="registro-list"></div>
   </section>
 
@@ -364,6 +379,20 @@
       <div class="spacer"></div>
       <div class="progress-chip" id="var-chip">0 / 0 registradas</div>
       <div class="progress-chip" id="var-chip-fuera" hidden>0 fuera de rango</div>
+      <button type="button" class="btn" id="btn-mover-var" hidden>Mover a otra fecha/turno</button>
+    </div>
+
+    <div class="panel" id="panel-mover-var" hidden>
+      <h2>Mover el control de este turno</h2>
+      <div class="add-form" style="margin-top:0;">
+        <div class="field"><label for="mov-var-fecha">Nueva fecha</label><input type="date" id="mov-var-fecha"></div>
+        <div class="field"><label for="mov-var-turno">Nuevo turno</label>
+          <select id="mov-var-turno"><option value="A">Turno A</option><option value="C">Turno C</option></select>
+        </div>
+        <button class="btn primary" id="btn-mover-var-confirm">Mover control</button>
+        <button class="btn" id="btn-mover-var-cancel">Cancelar</button>
+      </div>
+      <p class="note" style="margin-top:10px;">Traslada todos los valores medidos en este turno a la fecha y turno indicados. Solo se puede si el destino está vacío.</p>
     </div>
 
     <div id="variables-list"></div>
@@ -800,6 +829,53 @@
       .catch(function(err){ showToast("Error al eliminar: " + err.code); });
   });
 
+  function moverRegistroTurno(coll, fromFecha, fromTurno, docData, destFecha, destTurno, onDone){
+    if (!state.db){ showToast("No disponible sin conexión"); return; }
+    if (!docData){ showToast("No hay nada que mover"); return; }
+    if (!destFecha){ showToast("Indica la fecha de destino"); return; }
+    var fromId = shiftDocId(fromFecha, fromTurno);
+    var destId = shiftDocId(destFecha, destTurno);
+    if (fromId === destId){ showToast("Es la misma fecha y turno"); return; }
+
+    var destRef = state.db.collection(coll).doc(destId);
+    destRef.get().then(function(snap){
+      if (snap.exists){
+        showToast("Ya hay un registro en " + destFecha + " turno " + destTurno);
+        return null;
+      }
+      var copia = JSON.parse(JSON.stringify(docData));
+      copia.fecha = destFecha;
+      copia.turno = destTurno;
+      copia.updatedAt = new Date().toISOString();
+      return destRef.set(copia).then(function(){
+        return state.db.collection(coll).doc(fromId).delete();
+      }).then(function(){
+        showToast("Movido a " + destFecha + " turno " + destTurno);
+        onDone(destFecha, destTurno);
+      });
+    }).catch(function(err){ showToast("Error al mover: " + (err && err.code || "desconocido")); });
+  }
+
+  var moverShiftBtn = document.getElementById("btn-mover-shift");
+  var panelMoverShift = document.getElementById("panel-mover-shift");
+  moverShiftBtn.addEventListener("click", function(){
+    document.getElementById("mov-fecha").value = state.fecha;
+    document.getElementById("mov-turno").value = state.turno;
+    panelMoverShift.hidden = !panelMoverShift.hidden;
+  });
+  document.getElementById("btn-mover-cancel").addEventListener("click", function(){
+    panelMoverShift.hidden = true;
+  });
+  document.getElementById("btn-mover-confirm").addEventListener("click", function(){
+    moverRegistroTurno("registros", state.fecha, state.turno, state.shiftDoc,
+      document.getElementById("mov-fecha").value,
+      document.getElementById("mov-turno").value,
+      function(destFecha, destTurno){
+        panelMoverShift.hidden = true;
+        goToShift(destFecha, destTurno);
+      });
+  });
+
   function currentActividadData(actId){
     var d = state.shiftDoc && state.shiftDoc.actividades && state.shiftDoc.actividades[actId];
     return d || {};
@@ -833,6 +909,8 @@
     deleteBtn.hidden = !state.shiftDoc;
     deleteBtn.classList.remove("confirming");
     deleteBtn.textContent = "Eliminar registro del turno";
+    document.getElementById("btn-mover-shift").hidden = !state.shiftDoc;
+    if (!state.shiftDoc) document.getElementById("panel-mover-shift").hidden = true;
 
     list.querySelectorAll("[data-act-estado]").forEach(function(btn){
       btn.addEventListener("click", function(){
@@ -963,6 +1041,31 @@
     });
   });
 
+  var panelMoverVar = document.getElementById("panel-mover-var");
+  document.getElementById("btn-mover-var").addEventListener("click", function(){
+    document.getElementById("mov-var-fecha").value = state.varFecha;
+    document.getElementById("mov-var-turno").value = state.varTurno;
+    panelMoverVar.hidden = !panelMoverVar.hidden;
+  });
+  document.getElementById("btn-mover-var-cancel").addEventListener("click", function(){
+    panelMoverVar.hidden = true;
+  });
+  document.getElementById("btn-mover-var-confirm").addEventListener("click", function(){
+    moverRegistroTurno("mediciones", state.varFecha, state.varTurno, state.medDoc,
+      document.getElementById("mov-var-fecha").value,
+      document.getElementById("mov-var-turno").value,
+      function(destFecha, destTurno){
+        panelMoverVar.hidden = true;
+        state.varFecha = destFecha;
+        state.varTurno = destTurno;
+        varFechaInput.value = destFecha;
+        document.querySelectorAll("[data-var-turno]").forEach(function(b){
+          b.setAttribute("aria-pressed", b.getAttribute("data-var-turno") === destTurno ? "true" : "false");
+        });
+        subscribeMediciones();
+      });
+  });
+
   function activeVariables(){ return state.variables.filter(function(v){ return v.activo !== false; }); }
   function valorActual(varId){
     var d = state.medDoc && state.medDoc.valores && state.medDoc.valores[varId];
@@ -1080,6 +1183,10 @@
     listEl.innerHTML = html;
 
     document.getElementById("var-chip").innerHTML = '<strong>' + hechas + '</strong> / ' + total + ' registradas';
+    var hayMediciones = !!(state.medDoc && state.medDoc.valores && Object.keys(state.medDoc.valores).length);
+    document.getElementById("btn-mover-var").hidden = !hayMediciones;
+    if (!hayMediciones) document.getElementById("panel-mover-var").hidden = true;
+
     var chipFuera = document.getElementById("var-chip-fuera");
     chipFuera.hidden = fuera === 0;
     chipFuera.innerHTML = '<strong style="color:var(--bad);">' + fuera + '</strong> fuera de rango';
