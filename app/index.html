@@ -353,7 +353,15 @@
         <button class="btn primary" id="btn-mover-confirm">Mover registro</button>
         <button class="btn" id="btn-mover-cancel">Cancelar</button>
       </div>
-      <p class="note" style="margin-top:10px;">Traslada todo lo marcado en este turno (estados, comentarios y responsable) a la fecha y turno indicados. Solo se puede si el destino está vacío, para no pisar otro registro.</p>
+      <p class="note" style="margin-top:10px;">Traslada todo lo marcado en este turno (estados, comentarios y responsable) a la fecha y turno indicados.</p>
+      <div id="mover-conflicto" hidden style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+        <p class="note" style="color:var(--bad); font-weight:600;">Ya existe un registro en esa fecha y turno (<span id="mover-conflicto-detalle"></span>). Elige qué hacer:</p>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+          <button class="btn" id="btn-mover-combinar">Combinar — mantener lo del destino</button>
+          <button class="btn danger" id="btn-mover-reemplazar">Reemplazar el destino con este registro</button>
+        </div>
+        <p class="note" style="margin-top:10px;">Combinar agrega solo las actividades que al destino le faltan, sin tocar lo que ya tiene marcado. Reemplazar borra lo del destino y deja este registro en su lugar.</p>
+      </div>
     </div>
 
     <div id="registro-list"></div>
@@ -392,7 +400,15 @@
         <button class="btn primary" id="btn-mover-var-confirm">Mover control</button>
         <button class="btn" id="btn-mover-var-cancel">Cancelar</button>
       </div>
-      <p class="note" style="margin-top:10px;">Traslada todos los valores medidos en este turno a la fecha y turno indicados. Solo se puede si el destino está vacío.</p>
+      <p class="note" style="margin-top:10px;">Traslada todos los valores medidos en este turno a la fecha y turno indicados.</p>
+      <div id="mover-var-conflicto" hidden style="margin-top:14px; padding-top:14px; border-top:1px solid var(--border);">
+        <p class="note" style="color:var(--bad); font-weight:600;">Ya existe un control en esa fecha y turno (<span id="mover-var-conflicto-detalle"></span>). Elige qué hacer:</p>
+        <div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">
+          <button class="btn" id="btn-mover-var-combinar">Combinar — mantener lo del destino</button>
+          <button class="btn danger" id="btn-mover-var-reemplazar">Reemplazar el destino con este control</button>
+        </div>
+        <p class="note" style="margin-top:10px;">Combinar agrega solo los valores que al destino le faltan. Reemplazar borra los valores del destino y deja estos en su lugar.</p>
+      </div>
     </div>
 
     <div id="variables-list"></div>
@@ -829,51 +845,92 @@
       .catch(function(err){ showToast("Error al eliminar: " + err.code); });
   });
 
-  function moverRegistroTurno(coll, fromFecha, fromTurno, docData, destFecha, destTurno, onDone){
+  function moverRegistroTurno(opts){
+    var coll = opts.coll, campo = opts.campo, docData = opts.docData;
+    var destFecha = opts.destFecha, destTurno = opts.destTurno, modo = opts.modo || "mover";
     if (!state.db){ showToast("No disponible sin conexión"); return; }
     if (!docData){ showToast("No hay nada que mover"); return; }
     if (!destFecha){ showToast("Indica la fecha de destino"); return; }
-    var fromId = shiftDocId(fromFecha, fromTurno);
+    var fromId = shiftDocId(opts.fromFecha, opts.fromTurno);
     var destId = shiftDocId(destFecha, destTurno);
     if (fromId === destId){ showToast("Es la misma fecha y turno"); return; }
 
     var destRef = state.db.collection(coll).doc(destId);
     destRef.get().then(function(snap){
-      if (snap.exists){
-        showToast("Ya hay un registro en " + destFecha + " turno " + destTurno);
+      if (snap.exists && modo === "mover"){
+        var existente = snap.data() || {};
+        var cuantas = Object.keys(existente[campo] || {}).length;
+        opts.onConflicto(destFecha, destTurno, cuantas);
         return null;
       }
-      var copia = JSON.parse(JSON.stringify(docData));
-      copia.fecha = destFecha;
-      copia.turno = destTurno;
-      copia.updatedAt = new Date().toISOString();
-      return destRef.set(copia).then(function(){
+
+      var resultado;
+      if (snap.exists && modo === "combinar"){
+        resultado = JSON.parse(JSON.stringify(snap.data() || {}));
+        resultado[campo] = resultado[campo] || {};
+        var origen = docData[campo] || {};
+        Object.keys(origen).forEach(function(k){
+          if (resultado[campo][k] === undefined) resultado[campo][k] = origen[k];
+        });
+        if (!resultado.responsable && docData.responsable) resultado.responsable = docData.responsable;
+      } else {
+        resultado = JSON.parse(JSON.stringify(docData));
+      }
+      resultado.fecha = destFecha;
+      resultado.turno = destTurno;
+      resultado.updatedAt = new Date().toISOString();
+
+      return destRef.set(resultado).then(function(){
         return state.db.collection(coll).doc(fromId).delete();
       }).then(function(){
-        showToast("Movido a " + destFecha + " turno " + destTurno);
-        onDone(destFecha, destTurno);
+        showToast(modo === "combinar" ? "Combinado en " + destFecha + " turno " + destTurno
+                                      : "Movido a " + destFecha + " turno " + destTurno);
+        opts.onDone(destFecha, destTurno);
       });
     }).catch(function(err){ showToast("Error al mover: " + (err && err.code || "desconocido")); });
   }
 
   var moverShiftBtn = document.getElementById("btn-mover-shift");
   var panelMoverShift = document.getElementById("panel-mover-shift");
+  var conflictoShift = document.getElementById("mover-conflicto");
+
+  function moverShift(modo){
+    moverRegistroTurno({
+      coll: "registros", campo: "actividades",
+      fromFecha: state.fecha, fromTurno: state.turno, docData: state.shiftDoc,
+      destFecha: document.getElementById("mov-fecha").value,
+      destTurno: document.getElementById("mov-turno").value,
+      modo: modo,
+      onConflicto: function(destFecha, destTurno, cuantas){
+        document.getElementById("mover-conflicto-detalle").textContent =
+          destFecha + " turno " + destTurno + ", con " + cuantas + " actividad" + (cuantas === 1 ? "" : "es") + " marcada" + (cuantas === 1 ? "" : "s");
+        conflictoShift.hidden = false;
+      },
+      onDone: function(destFecha, destTurno){
+        conflictoShift.hidden = true;
+        panelMoverShift.hidden = true;
+        goToShift(destFecha, destTurno);
+      }
+    });
+  }
+
   moverShiftBtn.addEventListener("click", function(){
     document.getElementById("mov-fecha").value = state.fecha;
     document.getElementById("mov-turno").value = state.turno;
+    conflictoShift.hidden = true;
     panelMoverShift.hidden = !panelMoverShift.hidden;
   });
   document.getElementById("btn-mover-cancel").addEventListener("click", function(){
     panelMoverShift.hidden = true;
+    conflictoShift.hidden = true;
   });
-  document.getElementById("btn-mover-confirm").addEventListener("click", function(){
-    moverRegistroTurno("registros", state.fecha, state.turno, state.shiftDoc,
-      document.getElementById("mov-fecha").value,
-      document.getElementById("mov-turno").value,
-      function(destFecha, destTurno){
-        panelMoverShift.hidden = true;
-        goToShift(destFecha, destTurno);
-      });
+  document.getElementById("mov-fecha").addEventListener("change", function(){ conflictoShift.hidden = true; });
+  document.getElementById("mov-turno").addEventListener("change", function(){ conflictoShift.hidden = true; });
+  document.getElementById("btn-mover-confirm").addEventListener("click", function(){ moverShift("mover"); });
+  document.getElementById("btn-mover-combinar").addEventListener("click", function(){ moverShift("combinar"); });
+  document.getElementById("btn-mover-reemplazar").addEventListener("click", function(){
+    var btn = this;
+    armConfirm(btn, "¿Confirmar reemplazar?", function(){ moverShift("reemplazar"); });
   });
 
   function currentActividadData(actId){
@@ -1042,19 +1099,22 @@
   });
 
   var panelMoverVar = document.getElementById("panel-mover-var");
-  document.getElementById("btn-mover-var").addEventListener("click", function(){
-    document.getElementById("mov-var-fecha").value = state.varFecha;
-    document.getElementById("mov-var-turno").value = state.varTurno;
-    panelMoverVar.hidden = !panelMoverVar.hidden;
-  });
-  document.getElementById("btn-mover-var-cancel").addEventListener("click", function(){
-    panelMoverVar.hidden = true;
-  });
-  document.getElementById("btn-mover-var-confirm").addEventListener("click", function(){
-    moverRegistroTurno("mediciones", state.varFecha, state.varTurno, state.medDoc,
-      document.getElementById("mov-var-fecha").value,
-      document.getElementById("mov-var-turno").value,
-      function(destFecha, destTurno){
+  var conflictoVar = document.getElementById("mover-var-conflicto");
+
+  function moverVar(modo){
+    moverRegistroTurno({
+      coll: "mediciones", campo: "valores",
+      fromFecha: state.varFecha, fromTurno: state.varTurno, docData: state.medDoc,
+      destFecha: document.getElementById("mov-var-fecha").value,
+      destTurno: document.getElementById("mov-var-turno").value,
+      modo: modo,
+      onConflicto: function(destFecha, destTurno, cuantas){
+        document.getElementById("mover-var-conflicto-detalle").textContent =
+          destFecha + " turno " + destTurno + ", con " + cuantas + " valor" + (cuantas === 1 ? "" : "es") + " registrado" + (cuantas === 1 ? "" : "s");
+        conflictoVar.hidden = false;
+      },
+      onDone: function(destFecha, destTurno){
+        conflictoVar.hidden = true;
         panelMoverVar.hidden = true;
         state.varFecha = destFecha;
         state.varTurno = destTurno;
@@ -1063,7 +1123,27 @@
           b.setAttribute("aria-pressed", b.getAttribute("data-var-turno") === destTurno ? "true" : "false");
         });
         subscribeMediciones();
-      });
+      }
+    });
+  }
+
+  document.getElementById("btn-mover-var").addEventListener("click", function(){
+    document.getElementById("mov-var-fecha").value = state.varFecha;
+    document.getElementById("mov-var-turno").value = state.varTurno;
+    conflictoVar.hidden = true;
+    panelMoverVar.hidden = !panelMoverVar.hidden;
+  });
+  document.getElementById("btn-mover-var-cancel").addEventListener("click", function(){
+    panelMoverVar.hidden = true;
+    conflictoVar.hidden = true;
+  });
+  document.getElementById("mov-var-fecha").addEventListener("change", function(){ conflictoVar.hidden = true; });
+  document.getElementById("mov-var-turno").addEventListener("change", function(){ conflictoVar.hidden = true; });
+  document.getElementById("btn-mover-var-confirm").addEventListener("click", function(){ moverVar("mover"); });
+  document.getElementById("btn-mover-var-combinar").addEventListener("click", function(){ moverVar("combinar"); });
+  document.getElementById("btn-mover-var-reemplazar").addEventListener("click", function(){
+    var btn = this;
+    armConfirm(btn, "¿Confirmar reemplazar?", function(){ moverVar("reemplazar"); });
   });
 
   function activeVariables(){ return state.variables.filter(function(v){ return v.activo !== false; }); }
