@@ -126,18 +126,22 @@
   .field label{font-size:11.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em;}
   .fecha-wrap{position:relative; display:inline-flex; align-items:center;}
   .fecha-txt{
-    font-family:"IBM Plex Mono",monospace !important; width:132px; padding-right:32px !important;
+    font-family:"IBM Plex Mono",monospace !important; width:134px; padding-right:36px !important;
     letter-spacing:.02em;
   }
-  .fecha-btn{
-    position:absolute; right:5px; top:50%; transform:translateY(-50%);
-    border:none; background:transparent; cursor:pointer; padding:4px; line-height:0;
-    color:var(--text-muted);
+  .fecha-icono{
+    position:absolute; right:10px; top:50%; transform:translateY(-50%);
+    color:var(--text-muted); line-height:0; pointer-events:none;
   }
-  .fecha-btn:hover{color:var(--accent);}
+  .fecha-wrap:hover .fecha-icono{color:var(--accent);}
   .fecha-nativa{
-    position:absolute; right:8px; bottom:2px; width:1px; height:1px;
-    opacity:0; pointer-events:none; border:none; padding:0; margin:0; overflow:hidden;
+    position:absolute; right:2px; top:50%; transform:translateY(-50%);
+    width:32px; height:30px; padding:0; margin:0; border:none; background:transparent;
+    opacity:0; cursor:pointer;
+  }
+  .fecha-nativa::-webkit-calendar-picker-indicator{
+    position:absolute; left:0; top:0; width:100%; height:100%;
+    margin:0; padding:0; cursor:pointer;
   }
   input[type="date"],input[type="text"],textarea,select{
     font-family:inherit; font-size:14px; color:var(--text); background:var(--surface-2);
@@ -809,31 +813,20 @@
       if (lbl) lbl.setAttribute("for", txt.id);
     }
 
-    var btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "fecha-btn";
-    btn.setAttribute("aria-label", "Abrir calendario");
-    btn.innerHTML = ICONO_CALENDARIO;
+    var icono = document.createElement("span");
+    icono.className = "fecha-icono";
+    icono.innerHTML = ICONO_CALENDARIO;
 
     wrap.appendChild(txt);
-    wrap.appendChild(btn);
+    wrap.appendChild(icono);
     wrap.appendChild(nativo);
     nativo.classList.add("fecha-nativa");
     nativo.setAttribute("tabindex", "-1");
+    nativo.setAttribute("aria-label", "Abrir calendario");
 
     function pintar(){ txt.value = fechaLatam(nativo.value); }
     nativo._pintar = pintar;
     pintar();
-
-    btn.addEventListener("click", function(){
-      if (typeof nativo.showPicker === "function"){
-        try { nativo.showPicker(); return; } catch (e) {}
-      }
-      nativo.classList.remove("fecha-nativa");
-      nativo.focus();
-      nativo.click();
-      setTimeout(function(){ nativo.classList.add("fecha-nativa"); }, 200);
-    });
 
     nativo.addEventListener("change", pintar);
 
